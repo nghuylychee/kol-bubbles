@@ -89,9 +89,46 @@ kol-bubbles/
 └── vite.config.js       # Vite configuration
 ```
 
+## Troubleshooting
+
+### Lỗi 404 khi chạy local
+
+Nếu bạn gặp lỗi 404 khi chạy `npm run dev` hoặc `npm run preview`:
+
+1. **Đảm bảo đang chạy đúng command:**
+   - `npm run dev` - Chạy dev server (base path: `/`)
+   - `npm run build` - Build production (base path: `/`)
+   - `npm run build:gh-pages` - Build cho GitHub Pages (base path: `/kol-bubbles/`)
+
+2. **Kiểm tra base path trong `vite.config.js`:**
+   - Dev mode luôn dùng base `/`
+   - Chỉ khi build với `GITHUB_PAGES=true` thì mới dùng base path cho GitHub Pages
+
+3. **Nếu vẫn lỗi, thử:**
+   ```bash
+   # Xóa dist folder và build lại
+   rm -rf dist
+   npm run build
+   npm run preview
+   ```
+
+### Lỗi 404 trên GitHub Pages
+
+1. **Kiểm tra repo name:**
+   - Mở `.github/workflows/deploy.yml`
+   - Workflow tự động detect repo name
+   - Nếu repo name khác `kol-bubbles`, cập nhật trong `vite.config.js`:
+     ```js
+     base: '/your-repo-name/'
+     ```
+
+2. **Kiểm tra GitHub Pages settings:**
+   - Settings → Pages → Source: "GitHub Actions"
+   - Đảm bảo workflow đã chạy thành công
+
 ## Lưu ý
 
-- **Development**: Sử dụng Vite proxy cho image loading
+- **Development**: Sử dụng Vite proxy cho image loading, base path luôn là `/`
 - **Production (GitHub Pages)**: Sử dụng client-side CORS proxy (api.allorigins.win)
 - Avatar loading được giới hạn 2 concurrent requests với delay 500ms để tránh rate limiting
 - GitHub Pages không hỗ trợ server-side proxy, nên image proxy được xử lý ở client-side
