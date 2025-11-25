@@ -58,20 +58,40 @@ export async function fetchImageAsBlob(url) {
   if (!url) return null;
   
   try {
-    // Try multiple CORS proxy services as fallback
-    const proxyServices = [
-      // Service 1: allorigins.win (via Vite proxy)
-      () => fetchWithTimeout(`/api/image-proxy?url=${encodeURIComponent(url)}`, 8000),
-      // Service 2: corsproxy.io (direct)
-      () => fetchWithTimeout(`https://corsproxy.io/?${encodeURIComponent(url)}`, 8000),
-      // Service 3: api.allorigins.win (direct)
-      () => fetchWithTimeout(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, 8000)
-    ];
-
+    // In development, use Vite proxy. In production (GitHub Pages), use client-side proxy
+    const isDev = import.meta.env.DEV;
+    let proxyUrl;
+    
+    if (isDev) {
+      // Development: use Vite proxy
+      proxyUrl = `/api/image-proxy?url=${encodeURIComponent(url)}`;
+    } else {
+      // Production: use client-side CORS proxy (GitHub Pages doesn't support server proxy)
+      // Using allorigins.win which supports CORS
+      proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+    }
+    
+    // Try with retry logic for 429 errors
+    const maxRetries = 2;
     let lastError = null;
-    for (let i = 0; i < proxyServices.length; i++) {
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        const response = await proxyServices[i]();
+        const response = await fetchWithTimeout(proxyUrl, 10000);
+        
+        // Handle 429 (Too Many Requests) - retry with delay
+        if (response.status === 429) {
+          if (attempt < maxRetries) {
+            const retryAfter = response.headers.get('Retry-After');
+            const delay = retryAfter ? parseInt(retryAfter) * 1000 : 3000; // Default 3 seconds
+            console.warn(`Rate limited (429), waiting ${delay}ms before retry (attempt ${attempt + 1}/${maxRetries})...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue; // Retry
+          } else {
+            console.warn(`Rate limited (429) after ${maxRetries} retries`);
+            return null;
+          }
+        }
         
         if (response.ok) {
           const blob = await response.blob();
@@ -79,19 +99,31 @@ export async function fetchImageAsBlob(url) {
           if (blob.type.startsWith('image/') && blob.size > 0) {
             return URL.createObjectURL(blob);
           } else {
-            console.warn(`Proxy ${i + 1} returned invalid image blob`);
+            console.warn('Proxy returned invalid image blob');
+            return null;
           }
         } else {
-          console.warn(`Proxy ${i + 1} returned status: ${response.status}`);
+          console.warn(`Proxy returned status: ${response.status}`);
+          if (attempt < maxRetries && response.status >= 500) {
+            // Retry on server errors
+            await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+            continue;
+          }
+          return null;
         }
       } catch (error) {
         lastError = error;
-        // Continue to next proxy
-        continue;
+        if (attempt < maxRetries) {
+          // Wait before retry with exponential backoff
+          const delay = 1000 * Math.pow(2, attempt);
+          console.warn(`Request failed, retrying in ${delay}ms...`, error.message);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
       }
     }
     
-    console.warn(`All proxies failed for image: ${url.substring(0, 50)}...`, lastError?.message || 'Unknown error');
+    console.warn(`Failed to fetch image after ${maxRetries} retries: ${url.substring(0, 50)}...`, lastError?.message || 'Unknown error');
     return null;
   } catch (error) {
     console.warn('Error fetching image as blob:', error);

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import { getProxiedImageUrl, isInstagramImage, fetchImageAsBlob } from '../utils/imageProxy';
-import { getCachedAvatar, cacheAvatar } from '../utils/avatarCache';
+import { getCachedAvatar, cacheAvatar, loadAvatarWithQueue } from '../utils/avatarCache';
 
 export default function BubbleChart({ data, onBubbleClick, width, height }) {
   const svgRef = useRef(null);
@@ -582,51 +582,62 @@ export default function BubbleChart({ data, onBubbleClick, width, height }) {
           };
           img.src = cachedBlobUrl;
         } else {
-          // Always try to fetch through proxy for Instagram images
+          // Load avatar through queue (max 3 parallel)
+          let loadFn;
+          
           if (isInstagramImage(d.avatar_url)) {
-            fetchImageAsBlob(d.avatar_url)
-              .then(blobUrl => {
-                if (blobUrl) {
-                  // Cache the blob URL
-                  cacheAvatar(d.avatar_url, blobUrl);
-                  // Update image source to blob URL
-                  imageElement.attr('href', blobUrl);
-                  // Preload to verify it works
-                  const img = new Image();
-                  img.onload = () => {
-                    hideLoadingAndShowImage();
-                  };
-                  img.onerror = () => {
-                    URL.revokeObjectURL(blobUrl);
-                    imageElement.remove();
-                    hideLoadingAndShowInitials();
-                  };
-                  img.src = blobUrl;
-                } else {
-                  // All proxies failed, fallback to initials
+            // Instagram image: fetch through proxy
+            loadFn = () => fetchImageAsBlob(d.avatar_url);
+          } else {
+            // Non-Instagram image: try direct load with CORS
+            loadFn = () => {
+              return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                  // For direct images, return the original URL (cache it as itself)
+                  resolve(d.avatar_url);
+                };
+                img.onerror = () => {
+                  reject(new Error('Failed to load image'));
+                };
+                img.src = d.avatar_url;
+              });
+            };
+          }
+
+          // Load through queue
+          loadAvatarWithQueue(d.avatar_url, loadFn)
+            .then(resultUrl => {
+              if (resultUrl) {
+                // Update image source (could be blob URL or original URL)
+                imageElement.attr('href', resultUrl);
+                
+                // Preload to verify it works
+                const img = new Image();
+                img.onload = () => {
+                  hideLoadingAndShowImage();
+                };
+                img.onerror = () => {
+                  // If it's a blob URL, revoke it
+                  if (resultUrl.startsWith('blob:')) {
+                    URL.revokeObjectURL(resultUrl);
+                  }
                   imageElement.remove();
                   hideLoadingAndShowInitials();
-                }
-              })
-              .catch((error) => {
-                console.warn(`Failed to load avatar for ${d.name}:`, error);
+                };
+                img.src = resultUrl;
+              } else {
+                // Failed to load, fallback to initials
                 imageElement.remove();
                 hideLoadingAndShowInitials();
-              });
-          } else {
-            // Non-Instagram image, try direct load with CORS
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            img.onload = () => {
-              imageElement.attr('href', d.avatar_url);
-              hideLoadingAndShowImage();
-            };
-            img.onerror = () => {
+              }
+            })
+            .catch((error) => {
+              console.warn(`Failed to load avatar for ${d.name}:`, error);
               imageElement.remove();
               hideLoadingAndShowInitials();
-            };
-            img.src = d.avatar_url;
-          }
+            });
         }
       } else {
         // Fallback to initials if no avatar

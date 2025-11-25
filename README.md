@@ -1,16 +1,104 @@
-# React + Vite
+# KOL Bubbles - Interactive Bubble Chart Visualization
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Ứng dụng React + Vite để visualize dữ liệu KOL (Key Opinion Leaders) dưới dạng bubble chart tương tác.
 
-Currently, two official plugins are available:
+## Tính năng
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- 📊 Bubble chart tương tác với D3.js
+- 🔍 Tìm kiếm và lọc KOL
+- 🖼️ Avatar loading với queue system (tối đa 2 concurrent requests)
+- 📱 Responsive design
+- 🎨 UI hiện đại với animations
 
-## React Compiler
+## Development
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+# Install dependencies
+npm install
 
-## Expanding the ESLint configuration
+# Run dev server
+npm run dev
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+```
+
+## Deploy lên GitHub Pages
+
+### Cách 1: Tự động với GitHub Actions (Khuyến nghị)
+
+1. **Push code lên GitHub repository**
+   ```bash
+   git add .
+   git commit -m "Setup GitHub Pages"
+   git push origin main
+   ```
+
+2. **Bật GitHub Pages trong repository settings:**
+   - Vào Settings → Pages
+   - Source: chọn "GitHub Actions"
+   - Save
+
+3. **Cập nhật base path trong `vite.config.js`** (nếu cần):
+   - Nếu repo name là `kol-bubbles`, giữ nguyên
+   - Nếu repo name khác, thay `'/kol-bubbles/'` bằng `'/[your-repo-name]/'`
+   - Nếu repo là `username.github.io`, đổi base thành `'/'`
+
+4. **Workflow sẽ tự động chạy** khi bạn push code lên branch `main`
+   - Xem progress tại tab "Actions" trong GitHub
+   - Sau khi deploy xong, site sẽ có tại: `https://[username].github.io/kol-bubbles/`
+
+### Cách 2: Deploy thủ công
+
+```bash
+# Build với base path cho GitHub Pages
+npm run build:gh-pages
+
+# Deploy thủ công (cần cài gh-pages)
+npm install --save-dev gh-pages
+
+# Thêm script vào package.json:
+# "deploy": "gh-pages -d dist"
+
+# Deploy
+npm run deploy
+```
+
+## Cấu trúc Project
+
+```
+kol-bubbles/
+├── src/
+│   ├── components/      # React components
+│   │   ├── BubbleChart.jsx
+│   │   ├── BubbleDetail.jsx
+│   │   ├── FilterPanel.jsx
+│   │   ├── Header.jsx
+│   │   └── SearchBar.jsx
+│   ├── utils/          # Utilities
+│   │   ├── avatarCache.js    # Avatar caching & queue
+│   │   ├── imageProxy.js     # Image proxy (dev/prod)
+│   │   ├── csvParser.js
+│   │   └── ...
+│   └── ...
+├── public/              # Static files
+├── .github/workflows/   # GitHub Actions
+└── vite.config.js       # Vite configuration
+```
+
+## Lưu ý
+
+- **Development**: Sử dụng Vite proxy cho image loading
+- **Production (GitHub Pages)**: Sử dụng client-side CORS proxy (api.allorigins.win)
+- Avatar loading được giới hạn 2 concurrent requests với delay 500ms để tránh rate limiting
+- GitHub Pages không hỗ trợ server-side proxy, nên image proxy được xử lý ở client-side
+
+## Tech Stack
+
+- React 19
+- Vite 7
+- D3.js 7
+- PapaParse (CSV parsing)

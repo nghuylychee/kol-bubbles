@@ -4,6 +4,13 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  // Base path for GitHub Pages (change 'kol-bubbles' to your repo name if different)
+  // If your repo is username.github.io, set base to '/'
+  base: process.env.GITHUB_PAGES === 'true' ? '/kol-bubbles/' : '/',
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+  },
   server: {
     proxy: {
       '/api/apify': {
@@ -35,10 +42,19 @@ export default defineConfig({
           return path;
         },
         configure: (proxy, _options) => {
+          proxy.on('proxyReq', (proxyReq, req, res) => {
+            // Remove any existing origin header to avoid CORS issues
+            proxyReq.removeHeader('origin');
+          });
           proxy.on('proxyRes', (proxyRes, req, res) => {
-            // Set CORS headers
+            // Set CORS headers to allow all origins
             proxyRes.headers['access-control-allow-origin'] = '*';
-            proxyRes.headers['access-control-allow-methods'] = 'GET';
+            proxyRes.headers['access-control-allow-methods'] = 'GET, OPTIONS';
+            proxyRes.headers['access-control-allow-headers'] = '*';
+            // Preserve content-type for images
+            if (proxyRes.headers['content-type']) {
+              res.setHeader('content-type', proxyRes.headers['content-type']);
+            }
           });
         }
       }
