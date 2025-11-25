@@ -1,0 +1,13 @@
+{
+    "addParentData": false,
+    "directUrls": [
+      "https://www.instagram.com/tuilatranthanhday/"
+    ],
+    "enhanceUserSearchWithFacebookPage": false,
+    "isUserReelFeedURL": false,
+    "isUserTaggedFeedURL": false,
+    "resultsLimit": 200,
+    "resultsType": "details",
+    "searchLimit": 1,
+    "searchType": "hashtag"
+  }

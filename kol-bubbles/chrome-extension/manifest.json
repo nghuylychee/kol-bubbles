@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Noxinfluencer Scraper",
+  "version": "1.0.0",
+  "description": "Scrape top 100 Instagram influencers from noxinfluencer.com",
+  "permissions": [
+    "activeTab",
+    "downloads"
+  ],
+  "host_permissions": [
+    "https://www.noxinfluencer.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.noxinfluencer.com/*"],
+      "js": ["content.js"]
+    }
+  ]
+}
+

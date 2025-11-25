@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Noxinfluencer Scraper</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Noxinfluencer Scraper</h1>
+    <p class="description">Scrape top 100 Instagram influencers</p>
+    
+    <div id="status" class="status"></div>
+    
+    <button id="scrapeBtn" class="scrape-btn">
+      <span class="btn-text">Scrape Data</span>
+      <span class="btn-loader" style="display: none;">⏳ Scraping...</span>
+    </button>
+    
+    <div id="results" class="results" style="display: none;">
+      <div class="result-info">
+        <span id="resultCount">0</span> influencers found
+      </div>
+      <button id="downloadBtn" class="download-btn" disabled>Download CSV</button>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>
+
