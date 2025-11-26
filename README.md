@@ -26,46 +26,29 @@ npm run build
 npm run preview
 ```
 
-## Deploy lên GitHub Pages
+## 🚀 Deploy lên GitHub Pages
 
-### Cách 1: Tự động với GitHub Actions (Khuyến nghị)
+Project đã được cấu hình sẵn để deploy tự động lên GitHub Pages với GitHub Actions.
 
-1. **Push code lên GitHub repository**
+### Các bước deploy (Siêu đơn giản!)
+
+1. **Push code lên GitHub**
    ```bash
    git add .
-   git commit -m "Setup GitHub Pages"
+   git commit -m "Deploy to GitHub Pages"
    git push origin main
    ```
 
-2. **Bật GitHub Pages trong repository settings:**
-   - Vào Settings → Pages
+2. **Bật GitHub Pages** trong repository settings:
+   - Settings → Pages
    - Source: chọn "GitHub Actions"
    - Save
 
-3. **Cập nhật base path trong `vite.config.js`** (nếu cần):
-   - Nếu repo name là `kol-bubbles`, giữ nguyên
-   - Nếu repo name khác, thay `'/kol-bubbles/'` bằng `'/[your-repo-name]/'`
-   - Nếu repo là `username.github.io`, đổi base thành `'/'`
+3. **Xong!** 🎉 GitHub Actions sẽ tự động build và deploy
+   - Xem progress tại tab "Actions"
+   - Site sẽ có tại: `https://[username].github.io/[repo-name]/`
 
-4. **Workflow sẽ tự động chạy** khi bạn push code lên branch `main`
-   - Xem progress tại tab "Actions" trong GitHub
-   - Sau khi deploy xong, site sẽ có tại: `https://[username].github.io/kol-bubbles/`
-
-### Cách 2: Deploy thủ công
-
-```bash
-# Build với base path cho GitHub Pages
-npm run build:gh-pages
-
-# Deploy thủ công (cần cài gh-pages)
-npm install --save-dev gh-pages
-
-# Thêm script vào package.json:
-# "deploy": "gh-pages -d dist"
-
-# Deploy
-npm run deploy
-```
+📖 **Xem hướng dẫn chi tiết**: [DEPLOY.md](./DEPLOY.md)
 
 ## Cấu trúc Project
 

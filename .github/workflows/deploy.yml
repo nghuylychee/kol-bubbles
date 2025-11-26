@@ -1,57 +1,56 @@
 name: Deploy to GitHub Pages
 
 on:
+  # Chạy workflow khi push lên nhánh main
   push:
-    branches:
-      - main  # Change to 'master' if your default branch is master
-  workflow_dispatch:  # Allow manual trigger
+    branches: [ main ]
+  
+  # Cho phép chạy workflow thủ công từ tab Actions
+  workflow_dispatch:
 
+# Cấp quyền cho GITHUB_TOKEN để deploy lên Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
+# Chỉ cho phép một deployment chạy cùng lúc
 concurrency:
   group: "pages"
   cancel-in-progress: false
 
 jobs:
+  # Job build
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
+      
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-
+      
       - name: Install dependencies
         run: npm ci
-
-      - name: Extract repository name
-        id: repo
-        run: |
-          REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
-          echo "REPO_NAME=$REPO_NAME" >> $GITHUB_OUTPUT
-          echo "Repository name: $REPO_NAME"
-
+      
       - name: Build
         run: npm run build
         env:
           GITHUB_PAGES: 'true'
-          REPO_NAME: ${{ steps.repo.outputs.REPO_NAME }}
-
+          REPO_NAME: ${{ github.event.repository.name }}
+      
       - name: Setup Pages
         uses: actions/configure-pages@v4
-
+      
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './dist'
+          path: ./dist
 
+  # Job deploy
   deploy:
     environment:
       name: github-pages
@@ -62,4 +61,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-

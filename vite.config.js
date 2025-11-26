@@ -4,21 +4,11 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  // Base path for GitHub Pages (change 'kol-bubbles' to your repo name if different)
-  // If your repo is username.github.io, set base to '/'
-  // Only use base path when building for GitHub Pages, dev always uses '/'
-  base: (() => {
-    // In dev mode, always use '/'
-    if (process.env.NODE_ENV !== 'production') return '/';
-    
-    // In production build, check if building for GitHub Pages
-    if (process.env.GITHUB_PAGES === 'true') {
-      return process.env.REPO_NAME ? `/${process.env.REPO_NAME}/` : '/kol-bubbles/';
-    }
-    
-    // Default production build (for other hosting)
-    return '/';
-  })(),
+  // Base path cho GitHub Pages
+  // REPO_NAME sẽ được set tự động từ GitHub Actions
+  base: process.env.GITHUB_PAGES === 'true' && process.env.REPO_NAME
+    ? `/${process.env.REPO_NAME}/`
+    : '/',
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
