@@ -1,7 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import './App.css';
 import Header from './components/Header';
-import BubbleChart from './components/BubbleChart';
+import BubbleChart3D from './components/BubbleChart3D';
+import BubbleChart3DSimple from './components/BubbleChart3DSimple';
+import BubbleChartFallback from './components/BubbleChartFallback';
+import SimpleThree from './components/SimpleThree';
+import ErrorBoundary from './components/ErrorBoundary';
 import BubbleDetail from './components/BubbleDetail';
 import { loadKOLData, loadKOLDataMock } from './utils/csvParser';
 
@@ -13,6 +17,7 @@ function App() {
   const [selectedKol, setSelectedKol] = useState(null);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
+  const [renderMode, setRenderMode] = useState('fallback'); // Start with fallback to ensure something shows
   const [windowSize, setWindowSize] = useState({
     width: window.innerWidth,
     height: window.innerHeight
@@ -134,12 +139,143 @@ function App() {
       />
       <div className="main-content">
         <div className="bubble-chart-container">
-          <BubbleChart
-            data={filteredData}
-            onBubbleClick={handleBubbleClick}
-            width={chartWidth}
-            height={chartHeight}
-          />
+          {/* Mode selector */}
+          <div style={{
+            position: 'absolute',
+            top: '10px',
+            right: '10px',
+            zIndex: 10,
+            display: 'flex',
+            gap: '5px'
+          }}>
+            <button
+              onClick={() => setRenderMode('physics')}
+              style={{
+                padding: '6px 8px',
+                background: renderMode === 'physics' ? '#5865F2' : '#202225',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '10px'
+              }}
+            >
+              Physics
+            </button>
+            <button
+              onClick={() => setRenderMode('3d')}
+              style={{
+                padding: '6px 8px',
+                background: renderMode === '3d' ? '#5865F2' : '#202225',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '10px'
+              }}
+            >
+              3D Full
+            </button>
+            <button
+              onClick={() => setRenderMode('simple')}
+              style={{
+                padding: '6px 8px',
+                background: renderMode === 'simple' ? '#5865F2' : '#202225',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '10px'
+              }}
+            >
+              Test 3D
+            </button>
+            <button
+              onClick={() => setRenderMode('fallback')}
+              style={{
+                padding: '6px 8px',
+                background: renderMode === 'fallback' ? '#5865F2' : '#202225',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '10px'
+              }}
+            >
+              2D Safe
+            </button>
+          </div>
+
+          {renderMode === 'physics' && (
+            <ErrorBoundary>
+              <BubbleChart3DSimple
+                data={filteredData.map(kol => ({
+                  scale: Math.max(0.5, Math.min(2, (kol.total_followers / 1000000))),
+                  text: kol.name.length > 10 ? kol.name.substring(0, 8) + '..' : kol.name,
+                  color: kol.color,
+                  name: kol.name,
+                  total_followers: kol.total_followers
+                }))}
+                width={chartWidth}
+                height={chartHeight}
+              />
+            </ErrorBoundary>
+          )}
+
+          {renderMode === '3d' && (
+            <ErrorBoundary>
+              <BubbleChart3D
+                data={filteredData.map(kol => ({
+                  image: null, // Skip images to avoid CORS errors
+                  scale: Math.max(0.5, Math.min(2, (kol.total_followers / 1000000))), // Scale based on followers
+                  text: kol.name.length > 10 ? kol.name.substring(0, 8) + '..' : kol.name,
+                  color: kol.color,
+                  name: kol.name,
+                  total_followers: kol.total_followers,
+                  ...kol
+                }))}
+                onBubbleClick={handleBubbleClick}
+                width={chartWidth}
+                height={chartHeight}
+              />
+            </ErrorBoundary>
+          )}
+          
+          {renderMode === 'simple' && (
+            <ErrorBoundary>
+              <SimpleThree
+                width={chartWidth}
+                height={chartHeight}
+              />
+            </ErrorBoundary>
+          )}
+          
+          {renderMode === 'fallback' && (
+            <BubbleChartFallback
+              data={filteredData}
+              onBubbleClick={handleBubbleClick}
+              width={chartWidth}
+              height={chartHeight}
+            />
+          )}
+          
+          {/* Debug info */}
+          <div style={{
+            position: 'absolute',
+            bottom: '10px',
+            left: '10px',
+            background: 'rgba(0,0,0,0.7)',
+            color: 'white',
+            padding: '10px',
+            borderRadius: '4px',
+            fontSize: '12px',
+            zIndex: 10
+          }}>
+            <div>Mode: {renderMode}</div>
+            <div>Data: {filteredData?.length || 0} items</div>
+            <div>Size: {chartWidth}x{chartHeight}</div>
+            <div>Loading: {loading ? 'Yes' : 'No'}</div>
+          </div>
         </div>
       </div>
       {selectedKol && (

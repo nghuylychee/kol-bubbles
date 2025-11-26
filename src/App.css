@@ -221,6 +221,25 @@
   pointer-events: auto;
 }
 
+/* Three.js Canvas Styles */
+.bubble-chart-container canvas {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  cursor: grab;
+}
+
+.bubble-chart-container canvas:active {
+  cursor: grabbing;
+}
+
+/* Ensure Three.js canvas is responsive */
+@media (max-width: 768px) {
+  .bubble-chart-container {
+    height: calc(100vh - 80px);
+  }
+}
+
 /* Side Panel Styles */
 .side-panel {
   position: fixed;
