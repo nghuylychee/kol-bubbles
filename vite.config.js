@@ -32,31 +32,31 @@ export default defineConfig({
         }
       },
       '/api/image-proxy': {
-        target: 'https://api.allorigins.win',
+        target: 'https://corsproxy.io',
         changeOrigin: true,
         rewrite: (path) => {
-          // Extract URL from query and use allorigins proxy
+          // Extract URL from query and use corsproxy.io
           const url = new URL(path, 'http://localhost');
           const imageUrl = url.searchParams.get('url');
           if (imageUrl) {
-            return `/raw?url=${encodeURIComponent(imageUrl)}`;
+            // corsproxy.io uses ?url= format
+            return `/?${encodeURIComponent(imageUrl)}`;
           }
           return path;
         },
         configure: (proxy, _options) => {
-          proxy.on('proxyReq', (proxyReq, req, res) => {
-            // Remove any existing origin header to avoid CORS issues
-            proxyReq.removeHeader('origin');
+          proxy.on('error', (err, req, res) => {
+            console.error('Proxy error:', err.message);
+            res.writeHead(500, {
+              'Content-Type': 'text/plain',
+            });
+            res.end('Proxy error: ' + err.message);
           });
           proxy.on('proxyRes', (proxyRes, req, res) => {
-            // Set CORS headers to allow all origins
+            // Set CORS headers
             proxyRes.headers['access-control-allow-origin'] = '*';
             proxyRes.headers['access-control-allow-methods'] = 'GET, OPTIONS';
             proxyRes.headers['access-control-allow-headers'] = '*';
-            // Preserve content-type for images
-            if (proxyRes.headers['content-type']) {
-              res.setHeader('content-type', proxyRes.headers['content-type']);
-            }
           });
         }
       }

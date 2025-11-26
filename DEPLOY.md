@@ -78,33 +78,60 @@ Nếu muốn deploy thủ công mà không cần push code:
 
 ⚠️ **Development (npm run dev)**:
 - ✅ Button "Fetch Data" hiển thị - có thể fetch dữ liệu real-time từ Apify
-- ✅ Avatar loading - load hình ảnh từ Instagram qua Vite proxy
+- ✅ Avatar loading - load hình ảnh từ Instagram qua Vite proxy (nhanh và ổn định)
 - ✅ Tất cả tính năng hoạt động đầy đủ
 
 ⚠️ **Production (GitHub Pages)**:
 - ❌ Button "Fetch Data" bị ẩn - không thể gọi API từ GitHub Pages
-- ❌ Avatar loading bị tắt - Instagram CORS policy rất nghiêm ngặt
-- ✅ Hiển thị initials (chữ cái đầu) thay vì avatar
+- ✅ Avatar loading - sử dụng **multiple CORS proxy fallback**
+  - Thử direct fetch trước
+  - Nếu fail, tự động thử 4 CORS proxy services khác nhau
+  - Silent error handling (không hiện lỗi CORS trên console)
+  - Hiển thị initials nếu tất cả proxy đều fail
 - ✅ Dùng dữ liệu từ CSV files (mock data hoặc data đã fetch trước)
 
 ### API và Proxy
 
-⚠️ **Chú ý**: Các tính năng sau sẽ KHÔNG hoạt động trên GitHub Pages:
+#### Apify API Proxy
+❌ **Không hoạt động trên GitHub Pages**
+- Button "Fetch Data" bị ẩn trên production
+- Không thể gọi Apify API từ static site
 
-1. **Apify API proxy** (`/api/apify`) - Không có button Fetch Data trên production
-2. **Image proxy** (`/api/image-proxy`) - Avatar loading bị tắt trên production
+#### Avatar/Image Proxy
+✅ **Hoạt động với multiple fallback strategy & smart rate limiting**
 
-**Lý do**: 
-- GitHub Pages chỉ host static files (HTML, CSS, JS), không có server để xử lý proxy
-- Instagram có CORS policy rất nghiêm ngặt, các public CORS proxy thường bị block
-- Để tránh lỗi và cải thiện UX, avatar loading đã được tắt hoàn toàn trên production
+**Development**: Dùng Vite proxy (nhanh, ổn định)
+
+**Production**: Smart fallback system với rate limit protection
+1. **Try direct fetch** - Một số CDN cho phép CORS
+2. **Fallback chain** - Tự động thử 4 CORS proxy services:
+   - `corsproxy.io` (nhanh nhất)
+   - `api.codetabs.com` (ổn định)
+   - `cors.eu.org` (European)
+   - `api.allorigins.win` (backup)
+3. **Smart rate limiting**:
+   - Queue system: Chỉ load 1 avatar tại 1 thời điểm
+   - Base delay: 1000ms giữa mỗi request
+   - Exponential backoff khi gặp 429: 1s → 2s → 4s → 8s
+   - Auto-reset sau 30s không bị rate limit
+4. **Silent errors** - Không spam console với CORS/rate limit errors
+5. **Graceful fallback** - Hiển thị initials nếu tất cả fail
+
+**Lưu ý**: 
+- Avatar loading chậm hơn để tránh rate limiting (design trade-off)
+- Instagram CORS rất nghiêm ngặt, một số avatar có thể không load được
+- App sẽ tự động hiển thị initials (chữ cái đầu) nếu avatar không load được
 
 **Giải pháp đã áp dụng**:
 
-✅ **Avatar Loading**: Đã tắt hoàn toàn trên production, sử dụng initials thay thế
+✅ **Avatar Loading**: Multiple CORS proxy fallback system
+- Tự động thử 4 proxy services khác nhau
+- Silent error handling (không spam console)
+- Graceful fallback về initials nếu fail
+
 ✅ **Fetch Data Button**: Chỉ hiển thị ở development mode
 
-Nếu bạn muốn deploy với API và avatar loading đầy đủ, cần:
+Nếu bạn muốn deploy với Apify API fetching đầy đủ, cần:
 
 #### Option 1: Deploy với Backend riêng (Khuyến nghị)
 
@@ -148,6 +175,39 @@ Các file sau đã được setup sẵn cho GitHub Pages:
 - Kiểm tra GitHub Pages đã được enable
 - Đợi 2-3 phút sau khi deploy xong
 - Kiểm tra URL có đúng format: `username.github.io/repo-name`
+
+### Lỗi 500 từ Vite proxy trong development
+
+✅ **Đã được fix!**
+
+**Nguyên nhân**: CORS proxy service (`allorigins.win`) không ổn định, thỉnh thoảng trả về 500.
+
+**Giải pháp**: 
+1. **Dev mode**: Thử direct fetch trước, nếu fail mới dùng `corsproxy.io` (ổn định hơn)
+2. **Production**: Vẫn dùng multiple fallback như cũ
+
+Restart dev server nếu vẫn gặp lỗi:
+```bash
+# Stop server (Ctrl+C)
+npm run dev
+```
+
+### Lỗi 429 (Too Many Requests) khi load avatar
+
+✅ **Đã được fix!**
+
+**Nguyên nhân**: CORS proxy services có rate limiting. Load quá nhiều avatar cùng lúc sẽ bị chặn.
+
+**Giải pháp**: Đã implement smart queue system:
+- Chỉ load 1 avatar tại 1 thời điểm (sequential loading)
+- Delay 1000ms giữa mỗi request
+- Khi gặp 429, tự động tăng delay lên (exponential backoff)
+- Auto-reset về normal speed sau 30s
+
+**Trade-off**: Avatar loading chậm hơn (~1s/avatar) nhưng đổi lại:
+- ✅ Không bị rate limit
+- ✅ Không có error logs
+- ✅ Stable và reliable
 
 ### Lỗi 404 khi load file CSV (kol-data.csv, kol-data-fetched.csv)
 

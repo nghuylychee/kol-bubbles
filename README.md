@@ -115,13 +115,17 @@ Nếu bạn gặp lỗi 404 khi chạy `npm run dev` hoặc `npm run preview`:
 
 **Development (npm run dev)**:
 - ✅ Button "Fetch Data" có thể fetch dữ liệu từ Apify API
-- ✅ Avatar loading từ Instagram (qua Vite proxy)
+- ✅ Avatar loading từ Instagram (qua Vite proxy - nhanh & ổn định)
 - Base path: `/`
 
 **Production (GitHub Pages)**:
-- ❌ Button "Fetch Data" bị ẩn (không có server proxy)
-- ❌ Avatar loading bị tắt (Instagram CORS restrictions)
-- ✅ Hiển thị initials thay vì avatar
+- ❌ Button "Fetch Data" bị ẩn (không có server proxy cho Apify API)
+- ✅ Avatar loading - **Smart loading với rate limit protection**
+  - Sequential loading (1 avatar/second) để tránh rate limit
+  - Multiple CORS proxy fallback (4 services)
+  - Exponential backoff khi gặp 429 errors
+  - Silent error handling (không spam console)
+  - Graceful fallback về initials nếu fail
 - ✅ Dùng dữ liệu từ CSV files
 - Base path: `/repo-name/` (tự động từ GitHub Actions)
 

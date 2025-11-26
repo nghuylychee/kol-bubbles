@@ -49,84 +49,119 @@ function fetchWithTimeout(url, timeout = 10000) {
 }
 
 /**
+ * Multiple CORS proxy services to try (fallback chain)
+ */
+const CORS_PROXIES = [
+  // Proxy 1: corsproxy.io - Fast and reliable
+  (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  
+  // Proxy 2: api.codetabs.com - Good alternative
+  (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+  
+  // Proxy 3: cors.eu.org - European proxy
+  (url) => `https://cors.eu.org/${url}`,
+  
+  // Proxy 4: allorigins (slower but reliable)
+  (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+];
+
+/**
  * Fetch image as blob and convert to data URL
- * This bypasses CORS by fetching through our proxy
+ * This bypasses CORS by trying multiple proxy services
  * @param {string} url - Image URL
- * @returns {Promise<string|null>} Data URL or null if failed
+ * @returns {Promise<string|null>} Blob URL or null if failed
  */
 export async function fetchImageAsBlob(url) {
   if (!url) return null;
   
-  try {
-    const isDev = import.meta.env.DEV;
+  const isDev = import.meta.env.DEV;
+  
+  // Strategy: Try different methods in order
+  // 1. Development: Use Vite proxy
+  // 2. Production: Try direct fetch first, then fallback to multiple CORS proxies
+  
+  if (isDev) {
+    // Development: Try direct fetch first, then Vite proxy
+    // Some Instagram CDN URLs may work without proxy in dev
+    const directResult = await tryFetchImage(url, true);
+    if (directResult) return directResult;
     
-    // IMPORTANT: Tắt avatar loading trên production
-    // Instagram CORS policy rất nghiêm ngặt, các CORS proxy thường bị block
-    // Trên production sẽ chỉ hiển thị initials/placeholder
-    if (!isDev) {
-      console.log('Avatar loading is disabled in production (Instagram CORS restrictions)');
-      return null;
-    }
+    // Fallback to Vite proxy
+    return await tryFetchImage(`/api/image-proxy?url=${encodeURIComponent(url)}`, false);
+  } else {
+    // Production: Try multiple strategies
     
-    // Development: use Vite proxy
-    let proxyUrl = `/api/image-proxy?url=${encodeURIComponent(url)}`;
+    // Strategy 1: Try direct fetch (some CDNs allow CORS)
+    const directResult = await tryFetchImage(url, true);
+    if (directResult) return directResult;
     
-    // Try with retry logic for errors
-    const maxRetries = 2;
-    let lastError = null;
-    
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    // Strategy 2: Try each CORS proxy in sequence
+    for (const proxyFn of CORS_PROXIES) {
       try {
-        const response = await fetchWithTimeout(proxyUrl, 10000);
-        
-        // Handle 429 (Too Many Requests) - retry with delay
-        if (response.status === 429) {
-          if (attempt < maxRetries) {
-            const retryAfter = response.headers.get('Retry-After');
-            const delay = retryAfter ? parseInt(retryAfter) * 1000 : 3000; // Default 3 seconds
-            console.warn(`Rate limited (429), waiting ${delay}ms before retry (attempt ${attempt + 1}/${maxRetries})...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-            continue; // Retry
-          } else {
-            console.warn(`Rate limited (429) after ${maxRetries} retries`);
-            return null;
-          }
-        }
-        
-        if (response.ok) {
-          const blob = await response.blob();
-          // Verify it's actually an image
-          if (blob.type.startsWith('image/') && blob.size > 0) {
-            return URL.createObjectURL(blob);
-          } else {
-            console.warn('Proxy returned invalid image blob');
-            return null;
-          }
-        } else {
-          console.warn(`Proxy returned status: ${response.status}`);
-          if (attempt < maxRetries && response.status >= 500) {
-            // Retry on server errors
-            await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
-            continue;
-          }
-          return null;
-        }
+        const proxyUrl = proxyFn(url);
+        const result = await tryFetchImage(proxyUrl, true);
+        if (result) return result;
       } catch (error) {
-        lastError = error;
-        if (attempt < maxRetries) {
-          // Wait before retry with exponential backoff
-          const delay = 1000 * Math.pow(2, attempt);
-          console.warn(`Request failed, retrying in ${delay}ms...`, error.message);
-          await new Promise(resolve => setTimeout(resolve, delay));
-          continue;
-        }
+        // Silent fail, try next proxy
+        continue;
       }
     }
     
-    console.warn(`Failed to fetch image after ${maxRetries} retries: ${url.substring(0, 50)}...`, lastError?.message || 'Unknown error');
+    // All methods failed - return null silently (no error logs)
+    return null;
+  }
+}
+
+/**
+ * Try to fetch image from URL and convert to blob
+ * @param {string} url - URL to fetch
+ * @param {boolean} silent - If true, don't log errors
+ * @returns {Promise<string|null>} Blob URL or null
+ */
+async function tryFetchImage(url, silent = false) {
+  try {
+    const response = await fetchWithTimeout(url, 8000);
+    
+    // Special handling for 429 (Too Many Requests)
+    if (response.status === 429) {
+      // Wait before returning null
+      const retryAfter = response.headers.get('Retry-After');
+      const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : 2000;
+      
+      if (!silent && import.meta.env.DEV) {
+        console.warn(`⚠️ Rate limited (429), waiting ${waitTime}ms...`);
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+      
+      // Throw error so queue can handle it
+      const error = new Error('Rate limited');
+      error.statusCode = 429;
+      throw error;
+    }
+    
+    if (!response.ok) {
+      return null;
+    }
+    
+    const blob = await response.blob();
+    
+    // Verify it's actually an image
+    if (blob.type.startsWith('image/') && blob.size > 0) {
+      return URL.createObjectURL(blob);
+    }
+    
     return null;
   } catch (error) {
-    console.warn('Error fetching image as blob:', error);
+    // Re-throw 429 errors so queue can handle them
+    if (error.statusCode === 429) {
+      throw error;
+    }
+    
+    // Only log other errors in development mode
+    if (!silent && import.meta.env.DEV) {
+      console.warn(`Failed to fetch image: ${url.substring(0, 60)}...`, error.message);
+    }
     return null;
   }
 }

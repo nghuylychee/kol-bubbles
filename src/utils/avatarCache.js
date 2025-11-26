@@ -6,16 +6,19 @@
 const avatarCache = new Map();
 
 /**
- * Avatar loading queue with concurrency control
- * Maximum 2 avatars loading in parallel with delay between requests
+ * Avatar loading queue with smart rate limiting
+ * Handles 429 errors with exponential backoff
  */
 class AvatarLoadQueue {
-  constructor(maxConcurrency = 2, delayMs = 500) {
+  constructor(maxConcurrency = 1, delayMs = 1000) {
     this.queue = [];
     this.active = 0;
     this.maxConcurrency = maxConcurrency;
-    this.delayMs = delayMs; // Delay between requests to avoid rate limiting
+    this.baseDelayMs = delayMs;
+    this.currentDelayMs = delayMs; // Dynamic delay that increases on rate limit
     this.lastRequestTime = 0;
+    this.rateLimitCount = 0; // Track consecutive rate limits
+    this.lastRateLimitTime = 0;
   }
 
   /**
@@ -35,6 +38,36 @@ class AvatarLoadQueue {
   }
 
   /**
+   * Handle rate limit by increasing delay
+   */
+  handleRateLimit() {
+    this.rateLimitCount++;
+    this.lastRateLimitTime = Date.now();
+    
+    // Exponential backoff: 1s -> 2s -> 4s -> 8s (max)
+    this.currentDelayMs = Math.min(
+      this.baseDelayMs * Math.pow(2, this.rateLimitCount),
+      8000
+    );
+    
+    if (import.meta.env.DEV) {
+      console.warn(`⚠️ Rate limited! Slowing down to ${this.currentDelayMs}ms between requests`);
+    }
+  }
+
+  /**
+   * Reset rate limit tracking if we've been okay for a while
+   */
+  resetRateLimitIfNeeded() {
+    const timeSinceLastRateLimit = Date.now() - this.lastRateLimitTime;
+    // Reset after 30 seconds of no rate limiting
+    if (timeSinceLastRateLimit > 30000 && this.rateLimitCount > 0) {
+      this.rateLimitCount = 0;
+      this.currentDelayMs = this.baseDelayMs;
+    }
+  }
+
+  /**
    * Process queue - start loading avatars up to maxConcurrency
    */
   async process() {
@@ -42,11 +75,13 @@ class AvatarLoadQueue {
       return;
     }
 
+    this.resetRateLimitIfNeeded();
+
     // Add delay between requests to avoid rate limiting
     const now = Date.now();
     const timeSinceLastRequest = now - this.lastRequestTime;
-    if (timeSinceLastRequest < this.delayMs) {
-      const waitTime = this.delayMs - timeSinceLastRequest;
+    if (timeSinceLastRequest < this.currentDelayMs) {
+      const waitTime = this.currentDelayMs - timeSinceLastRequest;
       await new Promise(resolve => setTimeout(resolve, waitTime));
     }
 
@@ -58,6 +93,10 @@ class AvatarLoadQueue {
       const result = await task.loadFn();
       task.resolve(result);
     } catch (error) {
+      // Check if it's a rate limit error
+      if (error?.statusCode === 429 || error?.message?.includes('429')) {
+        this.handleRateLimit();
+      }
       task.reject(error);
     } finally {
       this.active--;
@@ -73,11 +112,14 @@ class AvatarLoadQueue {
     this.queue = [];
     this.active = 0;
     this.lastRequestTime = 0;
+    this.rateLimitCount = 0;
+    this.currentDelayMs = this.baseDelayMs;
   }
 }
 
-// Global avatar loading queue instance - max 2 concurrent, 500ms delay
-const avatarLoadQueue = new AvatarLoadQueue(2, 500);
+// Global avatar loading queue instance
+// Conservative settings: 1 concurrent, 1000ms delay (can increase on rate limit)
+const avatarLoadQueue = new AvatarLoadQueue(1, 1000);
 
 /**
  * Get cached avatar URL
@@ -141,7 +183,11 @@ export async function loadAvatarWithQueue(avatarUrl, loadFn) {
     }
     return null;
   } catch (error) {
-    console.warn(`Failed to load avatar: ${avatarUrl}`, error);
+    // Silent fail in production (rate limiting is expected)
+    // Only log in development for debugging
+    if (import.meta.env.DEV && error?.statusCode !== 429) {
+      console.warn(`Failed to load avatar: ${avatarUrl}`, error);
+    }
     return null;
   }
 }
