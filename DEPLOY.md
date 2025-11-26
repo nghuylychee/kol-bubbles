@@ -148,6 +148,26 @@ Các file sau đã được setup sẵn cho GitHub Pages:
 - Đợi 2-3 phút sau khi deploy xong
 - Kiểm tra URL có đúng format: `username.github.io/repo-name`
 
+### Lỗi 404 khi load file CSV (kol-data.csv, kol-data-fetched.csv)
+
+✅ **Đã được fix!** 
+
+**Nguyên nhân**: Các file trong thư mục `public/` được fetch với đường dẫn tuyệt đối (ví dụ `/kol-data.csv`), nhưng trên GitHub Pages với base path `/repo-name/`, đường dẫn đúng phải là `/repo-name/kol-data.csv`.
+
+**Giải pháp**: Đã sử dụng `import.meta.env.BASE_URL` trong code để tự động thêm base path:
+
+```javascript
+// Trước (sai):
+fetch('/kol-data.csv')
+
+// Sau (đúng):
+fetch(`${import.meta.env.BASE_URL}kol-data.csv`)
+```
+
+Vite sẽ tự động thay thế:
+- Local dev: `BASE_URL = '/'`
+- GitHub Pages: `BASE_URL = '/repo-name/'`
+
 ### CSS/JS không load
 
 - Kiểm tra file `vite.config.js` có cấu hình `base` đúng

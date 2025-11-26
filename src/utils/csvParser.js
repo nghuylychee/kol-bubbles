@@ -348,7 +348,7 @@ export async function loadKOLDataMock() {
 
     // If no cache, try to load from kol-data-fetched.csv first
     try {
-      const fetchedResponse = await fetch('/kol-data-fetched.csv');
+      const fetchedResponse = await fetch(`${import.meta.env.BASE_URL}kol-data-fetched.csv`);
       if (fetchedResponse.ok) {
         console.log('Loading from kol-data-fetched.csv (has real data)');
         const fetchedCsvContent = await fetchedResponse.text();
@@ -364,7 +364,7 @@ export async function loadKOLDataMock() {
     }
 
     // Fallback to kol-data.csv with mock data
-    const response = await fetch('/kol-data.csv');
+    const response = await fetch(`${import.meta.env.BASE_URL}kol-data.csv`);
     if (!response.ok) {
       throw new Error(`Failed to load CSV: ${response.statusText}`);
     }
@@ -388,7 +388,7 @@ export async function loadKOLDataMock() {
  */
 export async function loadKOLData(useApify = true) {
   try {
-    const response = await fetch('/kol-data.csv');
+    const response = await fetch(`${import.meta.env.BASE_URL}kol-data.csv`);
     if (!response.ok) {
       throw new Error(`Failed to load CSV: ${response.statusText}`);
     }
