@@ -74,63 +74,64 @@ Nếu muốn deploy thủ công mà không cần push code:
 
 ## ❗ Lưu ý quan trọng
 
+### Khác biệt giữa Development và Production
+
+⚠️ **Development (npm run dev)**:
+- ✅ Button "Fetch Data" hiển thị - có thể fetch dữ liệu real-time từ Apify
+- ✅ Avatar loading - load hình ảnh từ Instagram qua Vite proxy
+- ✅ Tất cả tính năng hoạt động đầy đủ
+
+⚠️ **Production (GitHub Pages)**:
+- ❌ Button "Fetch Data" bị ẩn - không thể gọi API từ GitHub Pages
+- ❌ Avatar loading bị tắt - Instagram CORS policy rất nghiêm ngặt
+- ✅ Hiển thị initials (chữ cái đầu) thay vì avatar
+- ✅ Dùng dữ liệu từ CSV files (mock data hoặc data đã fetch trước)
+
 ### API và Proxy
 
 ⚠️ **Chú ý**: Các tính năng sau sẽ KHÔNG hoạt động trên GitHub Pages:
 
-1. **Apify API proxy** (`/api/apify`)
-2. **Image proxy** (`/api/image-proxy`)
+1. **Apify API proxy** (`/api/apify`) - Không có button Fetch Data trên production
+2. **Image proxy** (`/api/image-proxy`) - Avatar loading bị tắt trên production
 
-**Lý do**: GitHub Pages chỉ host static files (HTML, CSS, JS), không có server để xử lý proxy.
+**Lý do**: 
+- GitHub Pages chỉ host static files (HTML, CSS, JS), không có server để xử lý proxy
+- Instagram có CORS policy rất nghiêm ngặt, các public CORS proxy thường bị block
+- Để tránh lỗi và cải thiện UX, avatar loading đã được tắt hoàn toàn trên production
 
-**Giải pháp**:
+**Giải pháp đã áp dụng**:
 
-#### Option 1: Gọi API trực tiếp từ frontend (Đơn giản nhất)
+✅ **Avatar Loading**: Đã tắt hoàn toàn trên production, sử dụng initials thay thế
+✅ **Fetch Data Button**: Chỉ hiển thị ở development mode
 
-Chỉnh sửa file `src/utils/apifyService.js`:
+Nếu bạn muốn deploy với API và avatar loading đầy đủ, cần:
 
-```javascript
-// Thay vì dùng proxy:
-const response = await fetch('/api/apify/...')
+#### Option 1: Deploy với Backend riêng (Khuyến nghị)
 
-// Gọi trực tiếp:
-const response = await fetch('https://api.apify.com/v2/...', {
-  headers: {
-    'Authorization': `Bearer ${apiToken}`
-  }
-})
-```
+Deploy backend server (Node.js/Express) lên:
+- **Vercel** (Miễn phí, dễ dùng nhất)
+- **Netlify Functions** 
+- **Railway**
+- **Render**
 
-**Lưu ý**: API token sẽ bị lộ trong network requests.
+Frontend gọi API đến backend server này để xử lý:
+- Apify API calls
+- Image proxy để bypass Instagram CORS
 
-#### Option 2: Sử dụng CORS proxy bên thứ 3
+#### Option 2: Sử dụng Vercel/Netlify để deploy toàn bộ app
 
-Dùng các service như:
-- https://corsproxy.io
-- https://api.allorigins.win
-- https://cors-anywhere.herokuapp.com
+Thay vì GitHub Pages, deploy lên Vercel hoặc Netlify:
+- Hỗ trợ serverless functions
+- Có thể tạo API routes để proxy requests
+- Vẫn miễn phí cho personal projects
 
-```javascript
-const proxyUrl = 'https://corsproxy.io/?';
-const apiUrl = 'https://api.apify.com/v2/...';
-const response = await fetch(proxyUrl + encodeURIComponent(apiUrl));
-```
+#### Option 3: Dùng mock data hoàn toàn
 
-#### Option 3: Deploy backend riêng (Khuyến nghị cho production)
-
-Deploy một backend server (Node.js/Express) lên:
-- Vercel
-- Netlify Functions
-- Railway
-- Heroku
-
-Sau đó frontend gọi API đến backend server này.
-
-### Xử lý hình ảnh
-
-Đối với việc load hình ảnh từ các nguồn khác:
-- Nếu nguồn hỗ trợ CORS: Có thể load trực tiếp
-- Nếu không hỗ trợ CORS: Cần dùng CORS proxy bên thứ 3
+Cách đơn giản nhất - chỉ dùng CSV files:
+- Tắt hoàn toàn API fetching
+- Dùng mock data từ `kol-data.csv`
+- Không cần avatar (dùng initials)
+- ✅ **Đây là cách hiện tại đang được áp dụng**
 
 ## 📝 File đã được cấu hình
 

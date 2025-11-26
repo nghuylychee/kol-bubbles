@@ -111,10 +111,19 @@ Nếu bạn gặp lỗi 404 khi chạy `npm run dev` hoặc `npm run preview`:
 
 ## Lưu ý
 
-- **Development**: Sử dụng Vite proxy cho image loading, base path luôn là `/`
-- **Production (GitHub Pages)**: Sử dụng client-side CORS proxy (api.allorigins.win)
-- Avatar loading được giới hạn 2 concurrent requests với delay 500ms để tránh rate limiting
-- GitHub Pages không hỗ trợ server-side proxy, nên image proxy được xử lý ở client-side
+### Development vs Production
+
+**Development (npm run dev)**:
+- ✅ Button "Fetch Data" có thể fetch dữ liệu từ Apify API
+- ✅ Avatar loading từ Instagram (qua Vite proxy)
+- Base path: `/`
+
+**Production (GitHub Pages)**:
+- ❌ Button "Fetch Data" bị ẩn (không có server proxy)
+- ❌ Avatar loading bị tắt (Instagram CORS restrictions)
+- ✅ Hiển thị initials thay vì avatar
+- ✅ Dùng dữ liệu từ CSV files
+- Base path: `/repo-name/` (tự động từ GitHub Actions)
 
 ## Tech Stack
 

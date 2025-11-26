@@ -58,20 +58,20 @@ export async function fetchImageAsBlob(url) {
   if (!url) return null;
   
   try {
-    // In development, use Vite proxy. In production (GitHub Pages), use client-side proxy
     const isDev = import.meta.env.DEV;
-    let proxyUrl;
     
-    if (isDev) {
-      // Development: use Vite proxy
-      proxyUrl = `/api/image-proxy?url=${encodeURIComponent(url)}`;
-    } else {
-      // Production: use client-side CORS proxy (GitHub Pages doesn't support server proxy)
-      // Using allorigins.win which supports CORS
-      proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+    // IMPORTANT: Tắt avatar loading trên production
+    // Instagram CORS policy rất nghiêm ngặt, các CORS proxy thường bị block
+    // Trên production sẽ chỉ hiển thị initials/placeholder
+    if (!isDev) {
+      console.log('Avatar loading is disabled in production (Instagram CORS restrictions)');
+      return null;
     }
     
-    // Try with retry logic for 429 errors
+    // Development: use Vite proxy
+    let proxyUrl = `/api/image-proxy?url=${encodeURIComponent(url)}`;
+    
+    // Try with retry logic for errors
     const maxRetries = 2;
     let lastError = null;
     
