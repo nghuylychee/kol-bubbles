@@ -118,8 +118,18 @@ class AvatarLoadQueue {
 }
 
 // Global avatar loading queue instance
-// Conservative settings: 1 concurrent, 1000ms delay (can increase on rate limit)
-const avatarLoadQueue = new AvatarLoadQueue(1, 1000);
+// Settings depend on environment:
+// - Vercel: Fast (3 concurrent, 200ms delay) - own proxy is reliable
+// - GitHub Pages: Conservative (1 concurrent, 1000ms delay) - public proxies have rate limits
+const isVercel = () => {
+  if (typeof window === 'undefined') return false;
+  return window.location.hostname.includes('vercel.app');
+};
+
+const avatarLoadQueue = new AvatarLoadQueue(
+  isVercel() ? 3 : 1,           // maxConcurrency
+  isVercel() ? 200 : 1000        // delayMs
+);
 
 /**
  * Get cached avatar URL

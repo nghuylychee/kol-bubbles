@@ -75,21 +75,26 @@ export async function fetchImageAsBlob(url) {
   if (!url) return null;
   
   const isDev = import.meta.env.DEV;
+  const isVercel = window.location.hostname.includes('vercel.app') || 
+                   import.meta.env.VITE_VERCEL === 'true';
   
-  // Strategy: Try different methods in order
+  // Strategy: Try different methods based on environment
   // 1. Development: Use Vite proxy
-  // 2. Production: Try direct fetch first, then fallback to multiple CORS proxies
+  // 2. Vercel Production: Use Vercel serverless function (fast & reliable)
+  // 3. GitHub Pages: Use multiple public CORS proxies (slow but works)
   
   if (isDev) {
     // Development: Try direct fetch first, then Vite proxy
-    // Some Instagram CDN URLs may work without proxy in dev
     const directResult = await tryFetchImage(url, true);
     if (directResult) return directResult;
     
     // Fallback to Vite proxy
     return await tryFetchImage(`/api/image-proxy?url=${encodeURIComponent(url)}`, false);
+  } else if (isVercel) {
+    // Vercel Production: Use own serverless function (best performance)
+    return await tryFetchImage(`/api/image-proxy?url=${encodeURIComponent(url)}`, true);
   } else {
-    // Production: Try multiple strategies
+    // GitHub Pages: Try multiple strategies
     
     // Strategy 1: Try direct fetch (some CDNs allow CORS)
     const directResult = await tryFetchImage(url, true);

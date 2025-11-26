@@ -26,29 +26,46 @@ npm run build
 npm run preview
 ```
 
-## 🚀 Deploy lên GitHub Pages
+## 🚀 Deploy Options
 
-Project đã được cấu hình sẵn để deploy tự động lên GitHub Pages với GitHub Actions.
+### ⚡ Option 1: Vercel (KHUYẾN NGHỊ - Nhanh gấp 5x!)
 
-### Các bước deploy (Siêu đơn giản!)
+**Tốc độ**: Load 50 avatars trong ~10 giây (thay vì ~50 giây)
 
-1. **Push code lên GitHub**
-   ```bash
-   git add .
-   git commit -m "Deploy to GitHub Pages"
-   git push origin main
-   ```
+```bash
+# 1. Commit & push code
+git add .
+git commit -m "Deploy to Vercel"
+git push origin main
 
-2. **Bật GitHub Pages** trong repository settings:
-   - Settings → Pages
-   - Source: chọn "GitHub Actions"
-   - Save
+# 2. Import project trên vercel.com
+# 3. Click Deploy
+# 4. Done! 🎉
+```
 
-3. **Xong!** 🎉 GitHub Actions sẽ tự động build và deploy
-   - Xem progress tại tab "Actions"
-   - Site sẽ có tại: `https://[username].github.io/[repo-name]/`
+📖 **Xem hướng dẫn chi tiết**: [VERCEL_DEPLOY.md](./VERCEL_DEPLOY.md)
+
+### 🌐 Option 2: GitHub Pages (Đơn giản nhưng chậm hơn)
+
+```bash
+# 1. Push code
+git push origin main
+
+# 2. Bật GitHub Pages trong Settings → Pages
+# Source: GitHub Actions
+```
 
 📖 **Xem hướng dẫn chi tiết**: [DEPLOY.md](./DEPLOY.md)
+
+### 📊 So sánh nhanh:
+
+| | Vercel | GitHub Pages |
+|---|--------|--------------|
+| Setup | 10 phút | 5 phút |
+| Avatar speed | ⚡⚡⚡⚡⚡ | ⚡ |
+| Rate limiting | Hiếm | Thường |
+| Auto-deploy | ✅ | ✅ |
+| Cost | FREE | FREE |
 
 ## Cấu trúc Project
 
