@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import './SnakeGame.css';
 import { getCachedAvatar, cacheAvatar, loadAvatarWithQueue } from '../utils/avatarCache';
+import { getProxiedImageUrl, isInstagramImage, fetchImageAsBlob } from '../utils/imageProxy';
 
 // Snake class
 class Snake {
@@ -492,34 +493,97 @@ export default function SnakeGame({ data, onSnakeClick }) {
         if (!kol.avatar_url) continue;
         
         try {
-          // Check cache first
-          const cachedImg = getCachedAvatar(kol.id);
-          if (cachedImg && cachedImg instanceof HTMLImageElement && cachedImg.complete) {
-            imgMap[kol.id] = cachedImg;
-            console.log(`✅ Loaded cached avatar for ${kol.name}`);
-            setLoadingAvatars(prev => {
-              const newSet = new Set(prev);
-              newSet.delete(kol.id);
-              return newSet;
+          // Check cache first (cache by URL not ID)
+          const cachedBlobUrl = getCachedAvatar(kol.avatar_url);
+          if (cachedBlobUrl) {
+            // Load cached image
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            
+            await new Promise((resolve) => {
+              img.onload = () => {
+                imgMap[kol.id] = img;
+                console.log(`✅ Loaded cached avatar for ${kol.name}`);
+                setLoadingAvatars(prev => {
+                  const newSet = new Set(prev);
+                  newSet.delete(kol.id);
+                  return newSet;
+                });
+                setImages(prev => ({ ...prev, [kol.id]: img }));
+                resolve();
+              };
+              
+              img.onerror = () => {
+                console.warn(`Failed to load cached avatar for ${kol.name}`);
+                setLoadingAvatars(prev => {
+                  const newSet = new Set(prev);
+                  newSet.delete(kol.id);
+                  return newSet;
+                });
+                resolve();
+              };
+              
+              img.src = cachedBlobUrl;
             });
-            setImages(prev => ({ ...prev, [kol.id]: cachedImg }));
             continue;
           }
           
-          // Load with queue and cache
-          const img = await loadAvatarWithQueue(kol.avatar_url, kol.id);
-          if (img && img instanceof HTMLImageElement && img.complete && img.naturalWidth > 0) {
-            imgMap[kol.id] = img;
-            cacheAvatar(kol.id, img);
-            console.log(`✅ Loaded avatar for ${kol.name}`);
-            setLoadingAvatars(prev => {
-              const newSet = new Set(prev);
-              newSet.delete(kol.id);
-              return newSet;
-            });
-            setImages(prev => ({ ...prev, [kol.id]: img }));
+          // Create load function (same as bubble chart)
+          let loadFn;
+          if (isInstagramImage(kol.avatar_url)) {
+            // Instagram image - use proxy
+            loadFn = () => fetchImageAsBlob(kol.avatar_url);
           } else {
-            console.warn(`⚠️ Invalid image for ${kol.name}`);
+            // Direct image
+            loadFn = () => {
+              return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => resolve(kol.avatar_url);
+                img.onerror = () => reject(new Error('Failed to load image'));
+                img.src = kol.avatar_url;
+              });
+            };
+          }
+          
+          // Load through queue
+          const resultUrl = await loadAvatarWithQueue(kol.avatar_url, loadFn);
+          
+          if (resultUrl) {
+            // Create image from result URL
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            
+            await new Promise((resolve) => {
+              img.onload = () => {
+                imgMap[kol.id] = img;
+                console.log(`✅ Loaded avatar for ${kol.name}`);
+                setLoadingAvatars(prev => {
+                  const newSet = new Set(prev);
+                  newSet.delete(kol.id);
+                  return newSet;
+                });
+                setImages(prev => ({ ...prev, [kol.id]: img }));
+                resolve();
+              };
+              
+              img.onerror = () => {
+                console.warn(`Failed to load avatar for ${kol.name}`);
+                if (resultUrl.startsWith('blob:')) {
+                  URL.revokeObjectURL(resultUrl);
+                }
+                setLoadingAvatars(prev => {
+                  const newSet = new Set(prev);
+                  newSet.delete(kol.id);
+                  return newSet;
+                });
+                resolve();
+              };
+              
+              img.src = resultUrl;
+            });
+          } else {
+            console.warn(`No result URL for ${kol.name}`);
             setLoadingAvatars(prev => {
               const newSet = new Set(prev);
               newSet.delete(kol.id);
