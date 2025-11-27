@@ -1,5 +1,5 @@
 import Papa from 'papaparse';
-import { generateMockFollowers, getBubbleColor, getInitials } from './mockData.js';
+import { generateMockFollowers, getBubbleColor, getSnakeColor, getInitials } from './mockData.js';
 import { 
   extractInstagramUrl,
   extractInstagramUsername,
@@ -61,7 +61,9 @@ export async function parseKOLDataMock(csvContent) {
               followers_tiktok: tiktokFollowers,
               total_followers: totalFollowers,
               avatar_url: null,
-              color: getBubbleColor(totalFollowers, minFollowers, maxFollowers),
+              bubbleColor: getBubbleColor(totalFollowers, minFollowers, maxFollowers),
+              snakeColor: getSnakeColor(kolId),
+              color: getBubbleColor(totalFollowers, minFollowers, maxFollowers), // Default for bubble mode
               initials: getInitials(row.name)
             };
           });
@@ -216,7 +218,9 @@ export async function parseKOLData(csvContent, useApify = true) {
               followers_tiktok: tiktokFollowers,
               total_followers: totalFollowers,
               avatar_url: avatar_url,
-              color: bubbleColor, // Always use newly calculated color
+              bubbleColor: bubbleColor,
+              snakeColor: getSnakeColor(kol.id),
+              color: bubbleColor, // Always use newly calculated color (for bubble mode)
               initials: getInitials(kol.name)
             };
           });
@@ -297,7 +301,9 @@ export async function parseKOLDataFetched(csvContent) {
           // Add colors to data
           const enrichedData = kolData.map(d => ({
             ...d,
-            color: getBubbleColor(d.total_followers, minFollowers, maxFollowers)
+            bubbleColor: getBubbleColor(d.total_followers, minFollowers, maxFollowers),
+            snakeColor: getSnakeColor(d.id),
+            color: getBubbleColor(d.total_followers, minFollowers, maxFollowers) // Default for bubble mode
           }));
 
           resolve(enrichedData);

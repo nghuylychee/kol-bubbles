@@ -56,6 +56,50 @@
   display: flex;
   align-items: center;
   gap: 1rem;
+  flex-wrap: wrap;
+}
+
+/* Mode Toggle */
+.mode-toggle {
+  display: flex;
+  gap: 0.5rem;
+  background: #202225;
+  padding: 4px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.mode-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: #b9bbbe;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.mode-button:hover {
+  background: #2f3136;
+  color: #dcddde;
+}
+
+.mode-button.active {
+  background: #5865F2;
+  color: #fff;
+}
+
+.mode-button svg {
+  flex-shrink: 0;
+}
+
+.mode-button span {
+  white-space: nowrap;
 }
 
 /* Search Bar */
@@ -448,6 +492,21 @@
   
   .header-title {
     font-size: 1.25rem;
+  }
+  
+  .mode-toggle {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .mode-button span {
+    display: none;
+  }
+  
+  .mode-button {
+    padding: 0.5rem;
+    flex: 1;
+    justify-content: center;
   }
 
   .follower-stats {

@@ -7,7 +7,9 @@ export default function Header({
   filterValue, 
   onFilterChange,
   onFetchData,
-  isFetching
+  isFetching,
+  viewMode,
+  onModeChange
 }) {
   // Chỉ hiển thị button Fetch Data khi ở development mode
   const isDev = import.meta.env.DEV;
@@ -16,7 +18,9 @@ export default function Header({
     <header className="header">
       <div className="header-top">
         <div className="header-left">
-          <h1 className="header-title">KOL BUBBLES</h1>
+          <h1 className="header-title">
+            {viewMode === 'bubble' ? 'KOL BUBBLES' : 'KOL SNAKES'}
+          </h1>
         </div>
         <div className="header-center">
           <SearchBar 
@@ -27,6 +31,32 @@ export default function Header({
         </div>
         <div className="header-right">
           <div className="header-controls">
+            {/* View Mode Toggle */}
+            <div className="mode-toggle">
+              <button 
+                className={`mode-button ${viewMode === 'bubble' ? 'active' : ''}`}
+                onClick={() => onModeChange('bubble')}
+                title="Bubble View"
+              >
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                  <circle cx="10" cy="10" r="8" fill="currentColor" opacity="0.3"/>
+                  <circle cx="10" cy="10" r="5" fill="currentColor"/>
+                </svg>
+                <span>Bubbles</span>
+              </button>
+              <button 
+                className={`mode-button ${viewMode === 'slither' ? 'active' : ''}`}
+                onClick={() => onModeChange('slither')}
+                title="Slither Game"
+              >
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M2 10 Q 5 5, 10 10 T 18 10" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round"/>
+                  <circle cx="18" cy="10" r="2" fill="currentColor"/>
+                </svg>
+                <span>Snakes</span>
+              </button>
+            </div>
+            
             {isDev && (
               <button 
                 className="fetch-button" 

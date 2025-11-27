@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import './App.css';
 import Header from './components/Header';
+import SnakeGame from './components/SnakeGame';
 import BubbleChart from './components/BubbleChart';
 import BubbleDetail from './components/BubbleDetail';
 import { loadKOLData, loadKOLDataMock } from './utils/csvParser';
@@ -13,6 +14,7 @@ function App() {
   const [selectedKol, setSelectedKol] = useState(null);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
+  const [viewMode, setViewMode] = useState('bubble'); // 'bubble' or 'slither'
   const [windowSize, setWindowSize] = useState({
     width: window.innerWidth,
     height: window.innerHeight
@@ -103,13 +105,21 @@ function App() {
     setFilteredData(processedData);
   }, [processedData]);
 
-  // Get chart dimensions
-  const chartWidth = windowSize.width;
-  const chartHeight = windowSize.height - 100; // Subtract header height
-
+  const handleSnakeClick = (kol) => {
+    setSelectedKol(kol);
+  };
+  
   const handleBubbleClick = (kol) => {
     setSelectedKol(kol);
   };
+  
+  const handleModeChange = (mode) => {
+    setViewMode(mode);
+  };
+  
+  // Get chart dimensions for bubble mode
+  const chartWidth = windowSize.width;
+  const chartHeight = windowSize.height - 100;
 
   const handleCloseModal = () => {
     setSelectedKol(null);
@@ -140,16 +150,25 @@ function App() {
         onFilterChange={setFilterValue}
         onFetchData={handleFetchData}
         isFetching={fetching}
+        viewMode={viewMode}
+        onModeChange={handleModeChange}
       />
       <div className="main-content">
-        <div className="bubble-chart-container">
-          <BubbleChart
+        {viewMode === 'bubble' ? (
+          <div className="bubble-chart-container">
+            <BubbleChart
+              data={filteredData}
+              onBubbleClick={handleBubbleClick}
+              width={chartWidth}
+              height={chartHeight}
+            />
+          </div>
+        ) : (
+          <SnakeGame
             data={filteredData}
-            onBubbleClick={handleBubbleClick}
-            width={chartWidth}
-            height={chartHeight}
+            onSnakeClick={handleSnakeClick}
           />
-        </div>
+        )}
       </div>
       {selectedKol && (
         <BubbleDetail

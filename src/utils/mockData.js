@@ -28,6 +28,34 @@ export function generateMockFollowers(kolId) {
 }
 
 /**
+ * Generate vibrant rainbow color based on ID for variety
+ * @param {number} kolId - KOL ID for color consistency
+ * @returns {string} Hex color code
+ */
+export function getSnakeColor(kolId) {
+  // Use ID as seed for consistent random colors
+  const seed = kolId * 2654435761;
+  const hue = (seed % 360);
+  
+  // Convert HSL to RGB - vibrant colors (saturation 80-100%, lightness 50-60%)
+  const saturation = 85 + ((seed >> 8) % 15); // 85-100%
+  const lightness = 50 + ((seed >> 16) % 10); // 50-60%
+  
+  return hslToHex(hue, saturation, lightness);
+}
+
+function hslToHex(h, s, l) {
+  l /= 100;
+  const a = s * Math.min(l, 1 - l) / 100;
+  const f = n => {
+    const k = (n + h / 30) % 12;
+    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+/**
  * Generate color for bubble based on total followers
  * Dynamic gradient from dark green (min/small) to light green (max/large)
  * @param {number} totalFollowers - Total follower count
