@@ -4,8 +4,8 @@
 
 ### 1. Responsive Bubble Sizes
 - ✅ Bubble size giờ scale tự động theo kích thước màn hình
-- ✅ Mobile: max size = 20% chiều nhỏ nhất của màn hình
-- ✅ Desktop: max size = 15% chiều nhỏ nhất của màn hình
+- ✅ Mobile: max size = 30% chiều nhỏ nhất của màn hình
+- ✅ Desktop: max size = 25% chiều nhỏ nhất của màn hình
 - ✅ Font sizes cũng được điều chỉnh responsive
 
 ### 2. Tối Ưu Thuật Toán Va Chạm (D3 Force Simulation)

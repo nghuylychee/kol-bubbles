@@ -15,14 +15,14 @@ export default function BubbleChart({ data, onBubbleClick, width, height }) {
   // Calculate responsive bubble sizes based on screen size
   const bubbleSizeRange = useMemo(() => {
     if (isMobile) {
-      // Smaller bubbles on mobile
-      const maxSize = Math.min(width, height) * 0.2; // 20% of smallest dimension
-      const minSize = Math.max(15, maxSize * 0.15); // Minimum 15px
+      // Larger bubbles on mobile for better visibility
+      const maxSize = Math.min(width, height) * 0.75; // 75% of smallest dimension
+      const minSize = Math.max(20, maxSize * 0.15); // Minimum 20px
       return [minSize, maxSize];
     } else {
-      // Desktop sizes (scale with screen)
-      const maxSize = Math.min(width, height) * 0.15;
-      const minSize = Math.max(20, maxSize * 0.1);
+      // Desktop sizes (scale with screen) - larger for better visual impact
+      const maxSize = Math.min(width, height) * 0.25; // 25% of smallest dimension
+      const minSize = Math.max(30, maxSize * 0.1); // Minimum 30px
       return [minSize, maxSize];
     }
   }, [width, height, isMobile]);
