@@ -17,6 +17,9 @@ function App() {
     width: window.innerWidth,
     height: window.innerHeight
   });
+  
+  // Detect mobile device
+  const isMobile = windowSize.width < 768;
 
   // Load initial data from CSV (mock data only, NO Apify) on mount
   useEffect(() => {
@@ -85,9 +88,15 @@ function App() {
         result = result.slice(0, topN);
       }
     }
+    
+    // Limit number of bubbles on mobile for better performance
+    if (isMobile && filterValue === 'all') {
+      // Show max 30 bubbles on mobile if "all" is selected
+      result = result.slice(0, 30);
+    }
 
     return result;
-  }, [kolData, searchQuery, filterValue]);
+  }, [kolData, searchQuery, filterValue, isMobile]);
 
   // Update filtered data when processed data changes
   useEffect(() => {

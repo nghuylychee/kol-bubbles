@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import * as d3 from 'd3';
 import { getProxiedImageUrl, isInstagramImage, fetchImageAsBlob } from '../utils/imageProxy';
 import { getCachedAvatar, cacheAvatar, loadAvatarWithQueue } from '../utils/avatarCache';
@@ -6,6 +6,26 @@ import { getCachedAvatar, cacheAvatar, loadAvatarWithQueue } from '../utils/avat
 export default function BubbleChart({ data, onBubbleClick, width, height }) {
   const svgRef = useRef(null);
   const simulationRef = useRef(null);
+  
+  // Detect mobile device
+  const isMobile = useMemo(() => {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || width < 768;
+  }, [width]);
+  
+  // Calculate responsive bubble sizes based on screen size
+  const bubbleSizeRange = useMemo(() => {
+    if (isMobile) {
+      // Smaller bubbles on mobile
+      const maxSize = Math.min(width, height) * 0.2; // 20% of smallest dimension
+      const minSize = Math.max(15, maxSize * 0.15); // Minimum 15px
+      return [minSize, maxSize];
+    } else {
+      // Desktop sizes (scale with screen)
+      const maxSize = Math.min(width, height) * 0.15;
+      const minSize = Math.max(20, maxSize * 0.1);
+      return [minSize, maxSize];
+    }
+  }, [width, height, isMobile]);
 
   useEffect(() => {
     const svg = d3.select(svgRef.current);
@@ -30,12 +50,12 @@ export default function BubbleChart({ data, onBubbleClick, width, height }) {
       return;
     }
 
-    // Calculate bubble size based on total followers
+    // Calculate bubble size based on total followers (responsive)
     const maxFollowers = d3.max(data, d => d.total_followers);
     const minFollowers = d3.min(data, d => d.total_followers);
     const sizeScale = d3.scaleSqrt()
       .domain([minFollowers, maxFollowers])
-      .range([20, 200]);
+      .range(bubbleSizeRange); // Use responsive range
 
     // Load saved positions from localStorage
     const savedPositions = JSON.parse(localStorage.getItem('bubblePositions') || '{}');
@@ -78,11 +98,19 @@ export default function BubbleChart({ data, onBubbleClick, width, height }) {
       simulation.alpha(0.1).restart();
     } else {
       // Create new simulation only if it doesn't exist
+      // Optimize settings based on device type
+      const chargeStrength = isMobile ? -50 : -120; // Less repulsion on mobile
+      const collisionIterations = isMobile ? 1 : 2; // Fewer iterations on mobile
+      const alphaDecayRate = isMobile ? 0.02 : 0.005; // Faster decay on mobile (stops sooner)
+      const velocityDecayRate = isMobile ? 0.7 : 0.6; // Slower movement on mobile
+      
       simulation = d3.forceSimulation(nodes)
-        .force('charge', d3.forceManyBody().strength(-120)) // Reduced strength for smoother movement
-        .force('collision', d3.forceCollide().radius(d => d.radius + 5)) // Increased padding to reduce constant collisions
-        .velocityDecay(0.6) // Increased from 0.4 to 0.6 for slower movement (higher = slower)
-        .alphaDecay(0.005); // Reduced from 0.01 to 0.005 for much slower movement
+        .force('charge', d3.forceManyBody().strength(chargeStrength))
+        .force('collision', d3.forceCollide()
+          .radius(d => d.radius + 5)
+          .iterations(collisionIterations)) // Reduce collision detection iterations on mobile
+        .velocityDecay(velocityDecayRate)
+        .alphaDecay(alphaDecayRate);
       
       simulationRef.current = simulation;
     }
@@ -90,14 +118,16 @@ export default function BubbleChart({ data, onBubbleClick, width, height }) {
     // Track if user is dragging to prevent click events
     let isDragging = false;
 
-    // Create drag behavior
+    // Create drag behavior (optimized for mobile)
     const drag = d3.drag()
       .on('start', (event, d) => {
         isDragging = false;
-        if (!event.active) simulation.alphaTarget(0.3).restart();
+        // Lower alpha target on mobile for less aggressive restart
+        const alphaTarget = isMobile ? 0.1 : 0.3;
+        if (!event.active) simulation.alphaTarget(alphaTarget).restart();
         d.fx = d.x;
         d.fy = d.y;
-        svg.style('cursor', 'grabbing');
+        if (!isMobile) svg.style('cursor', 'grabbing');
       })
       .on('drag', (event, d) => {
         isDragging = true;
@@ -108,7 +138,7 @@ export default function BubbleChart({ data, onBubbleClick, width, height }) {
         if (!event.active) simulation.alphaTarget(0);
         d.fx = null;
         d.fy = null;
-        svg.style('cursor', 'default');
+        if (!isMobile) svg.style('cursor', 'default');
         // Save position after drag
         saveBubblePositions(nodes);
         // Reset dragging flag after a short delay
@@ -143,11 +173,14 @@ export default function BubbleChart({ data, onBubbleClick, width, height }) {
         
         // Only animate if radius changed
         if (circle.attr('r') != node.radius) {
-          // Update radius with animation
+          // Update radius with animation (faster on mobile)
+          const updateDuration = isMobile ? 300 : 600;
+          const updateEase = isMobile ? d3.easeQuadOut : d3.easeBackOut.overshoot(1.5);
+          
           circle
             .transition()
-            .duration(600)
-            .ease(d3.easeBackOut.overshoot(1.5))
+            .duration(updateDuration)
+            .ease(updateEase)
             .attr('r', node.radius);
           
           // Update gradients if color changed
@@ -227,8 +260,8 @@ export default function BubbleChart({ data, onBubbleClick, width, height }) {
           if (avatarBg.size() > 0) {
             avatarBg
               .transition()
-              .duration(600)
-              .ease(d3.easeBackOut.overshoot(1.5))
+              .duration(updateDuration)
+              .ease(updateEase)
               .attr('r', newAvatarSize)
               .attr('cy', newAvatarY)
               .style('opacity', node.radius > 35 ? 1 : 0);
@@ -248,8 +281,8 @@ export default function BubbleChart({ data, onBubbleClick, width, height }) {
           if (avatarImage.size() > 0) {
             avatarImage
               .transition()
-              .duration(600)
-              .ease(d3.easeBackOut.overshoot(1.5))
+              .duration(updateDuration)
+              .ease(updateEase)
               .attr('x', -newAvatarSize)
               .attr('y', newAvatarY - newAvatarSize)
               .attr('width', newAvatarSize * 2)
@@ -262,8 +295,8 @@ export default function BubbleChart({ data, onBubbleClick, width, height }) {
           if (avatarInitials.size() > 0) {
             avatarInitials
               .transition()
-              .duration(600)
-              .ease(d3.easeBackOut.overshoot(1.5))
+              .duration(updateDuration)
+              .ease(updateEase)
               .attr('y', newAvatarY)
               .attr('font-size', newAvatarSize * 0.6)
               .style('opacity', node.radius > 35 ? 1 : 0);
@@ -275,8 +308,8 @@ export default function BubbleChart({ data, onBubbleClick, width, height }) {
             const spinnerRadius = newAvatarSize * 0.3;
             spinner
               .transition()
-              .duration(600)
-              .ease(d3.easeBackOut.overshoot(1.5))
+              .duration(updateDuration)
+              .ease(updateEase)
               .attr('r', spinnerRadius)
               .attr('cy', newAvatarY)
               .attr('stroke-dasharray', `${Math.PI * spinnerRadius * 0.5} ${Math.PI * spinnerRadius * 0.5}`)
@@ -290,8 +323,8 @@ export default function BubbleChart({ data, onBubbleClick, width, height }) {
           if (nameText.size() > 0) {
             nameText
               .transition()
-              .duration(600)
-              .ease(d3.easeBackOut.overshoot(1.5))
+              .duration(updateDuration)
+              .ease(updateEase)
               .attr('font-size', Math.max(18, Math.min(28, node.radius / 2.5)))
               .style('opacity', node.radius > 35 ? 1 : 0)
               .text(() => {
@@ -314,8 +347,8 @@ export default function BubbleChart({ data, onBubbleClick, width, height }) {
             
             followerText
               .transition()
-              .duration(600)
-              .ease(d3.easeBackOut.overshoot(1.5))
+              .duration(updateDuration)
+              .ease(updateEase)
               .attr('font-size', Math.max(13, Math.min(18, node.radius / 4)))
               .attr('dy', node.radius * 0.4 + 14)
               .style('opacity', node.radius > 35 ? 1 : 0)
@@ -330,15 +363,18 @@ export default function BubbleChart({ data, onBubbleClick, width, height }) {
       .append('g')
       .attr('class', 'bubble')
       .attr('transform', d => `translate(${d.x || 0},${d.y || 0}) scale(0)`)
-      .style('cursor', 'grab')
+      .style('cursor', isMobile ? 'pointer' : 'grab')
       .style('opacity', 0)
       .call(drag);
     
-    // Animate new bubbles appearing (scale from 0 to 1) - only for truly new bubbles
+    // Animate new bubbles appearing (scale from 0 to 1) - faster on mobile
+    const enterDuration = isMobile ? 300 : 600;
+    const enterEase = isMobile ? d3.easeQuadOut : d3.easeBackOut.overshoot(1.5);
+    
     bubblesEnter
       .transition()
-      .duration(600)
-      .ease(d3.easeBackOut.overshoot(1.5))
+      .duration(enterDuration)
+      .ease(enterEase)
       .attr('transform', d => `translate(${d.x || 0},${d.y || 0}) scale(1)`)
       .style('opacity', 1);
     
@@ -365,6 +401,7 @@ export default function BubbleChart({ data, onBubbleClick, width, height }) {
     }
     
     // Create gradients for each node (only for new bubbles, use id for consistency)
+    // Simplify gradients on mobile for better performance
     nodes.forEach((d) => {
       // Check if gradient already exists (for existing bubbles)
       if (defs.select(`#borderGradient-${d.id}`).empty()) {
@@ -376,25 +413,36 @@ export default function BubbleChart({ data, onBubbleClick, width, height }) {
           .attr('x2', '100%')
           .attr('y2', '100%');
         
-        // Create color variations for gradient
+        // Create color variations for gradient (fewer stops on mobile)
         const color1 = d.color;
         const color2 = d3.rgb(d.color).brighter(0.5).toString();
         const color3 = d3.rgb(d.color).darker(0.3).toString();
         
-        borderGradient.append('stop')
-          .attr('offset', '0%')
-          .attr('stop-color', color2)
-          .attr('stop-opacity', 1);
-        
-        borderGradient.append('stop')
-          .attr('offset', '50%')
-          .attr('stop-color', color1)
-          .attr('stop-opacity', 1);
-        
-        borderGradient.append('stop')
-          .attr('offset', '100%')
-          .attr('stop-color', color3)
-          .attr('stop-opacity', 1);
+        if (isMobile) {
+          // Simpler 2-stop gradient on mobile
+          borderGradient.append('stop')
+            .attr('offset', '0%')
+            .attr('stop-color', color2)
+            .attr('stop-opacity', 1);
+          borderGradient.append('stop')
+            .attr('offset', '100%')
+            .attr('stop-color', color1)
+            .attr('stop-opacity', 1);
+        } else {
+          // Full 3-stop gradient on desktop
+          borderGradient.append('stop')
+            .attr('offset', '0%')
+            .attr('stop-color', color2)
+            .attr('stop-opacity', 1);
+          borderGradient.append('stop')
+            .attr('offset', '50%')
+            .attr('stop-color', color1)
+            .attr('stop-opacity', 1);
+          borderGradient.append('stop')
+            .attr('offset', '100%')
+            .attr('stop-color', color3)
+            .attr('stop-opacity', 1);
+        }
       }
 
       // Check if fill gradient already exists
@@ -408,43 +456,61 @@ export default function BubbleChart({ data, onBubbleClick, width, height }) {
         
         const color1 = d.color;
         
-        // Gradient from transparent center to more opaque at edges
-        fillGradient.append('stop')
-          .attr('offset', '0%')
-          .attr('stop-color', color1)
-          .attr('stop-opacity', 0);
-        
-        fillGradient.append('stop')
-          .attr('offset', '40%')
-          .attr('stop-color', color1)
-          .attr('stop-opacity', 0.1);
-        
-        fillGradient.append('stop')
-          .attr('offset', '70%')
-          .attr('stop-color', color1)
-          .attr('stop-opacity', 0.25);
-        
-        fillGradient.append('stop')
-          .attr('offset', '90%')
-          .attr('stop-color', color1)
-          .attr('stop-opacity', 0.4);
-        
-        fillGradient.append('stop')
-          .attr('offset', '100%')
-          .attr('stop-color', color1)
-          .attr('stop-opacity', 0.5);
+        if (isMobile) {
+          // Simpler 3-stop gradient on mobile
+          fillGradient.append('stop')
+            .attr('offset', '0%')
+            .attr('stop-color', color1)
+            .attr('stop-opacity', 0);
+          fillGradient.append('stop')
+            .attr('offset', '70%')
+            .attr('stop-color', color1)
+            .attr('stop-opacity', 0.25);
+          fillGradient.append('stop')
+            .attr('offset', '100%')
+            .attr('stop-color', color1)
+            .attr('stop-opacity', 0.5);
+        } else {
+          // Full 5-stop gradient on desktop
+          fillGradient.append('stop')
+            .attr('offset', '0%')
+            .attr('stop-color', color1)
+            .attr('stop-opacity', 0);
+          fillGradient.append('stop')
+            .attr('offset', '40%')
+            .attr('stop-color', color1)
+            .attr('stop-opacity', 0.1);
+          fillGradient.append('stop')
+            .attr('offset', '70%')
+            .attr('stop-color', color1)
+            .attr('stop-opacity', 0.25);
+          fillGradient.append('stop')
+            .attr('offset', '90%')
+            .attr('stop-color', color1)
+            .attr('stop-opacity', 0.4);
+          fillGradient.append('stop')
+            .attr('offset', '100%')
+            .attr('stop-color', color1)
+            .attr('stop-opacity', 0.5);
+        }
       }
     });
 
     // Add circles with radial gradient fill and gradient border (only for new bubbles)
+    // Simplify effects on mobile for better performance
+    const circleStrokeWidth = isMobile ? 2 : 4;
+    const circleFilter = isMobile ? 'none' : 'url(#glow)'; // Disable glow on mobile
+    
     bubblesEnter.append('circle')
       .attr('r', d => d.radius)
       .attr('fill', d => `url(#fillGradient-${d.id})`)
       .attr('stroke', d => `url(#borderGradient-${d.id})`)
-      .attr('stroke-width', 4)
+      .attr('stroke-width', circleStrokeWidth)
       .attr('stroke-linecap', 'round')
-      .style('filter', 'url(#glow)')
+      .style('filter', circleFilter)
       .on('mouseenter', function(event, d) {
+        // Disable hover effects on mobile (no mouse)
+        if (isMobile) return;
         d3.select(this)
           .transition()
           .duration(200)
@@ -452,6 +518,7 @@ export default function BubbleChart({ data, onBubbleClick, width, height }) {
           .style('filter', 'url(#glow) drop-shadow(0 0 8px ' + d.color + ')');
       })
       .on('mouseleave', function(event, d) {
+        if (isMobile) return;
         d3.select(this)
           .transition()
           .duration(200)
@@ -481,7 +548,10 @@ export default function BubbleChart({ data, onBubbleClick, width, height }) {
         .style('pointer-events', 'none');
       
       // Add avatar image or initials in the small circle at top
-      if (d.avatar_url) {
+      // On mobile, only load avatar if bubble is large enough to show it
+      const shouldLoadAvatar = !isMobile || d.radius > 35;
+      
+      if (d.avatar_url && shouldLoadAvatar) {
         // Add clip path for circular avatar
         const clipId = `avatar-clip-${d.id}`;
         defs.append('clipPath')
@@ -514,21 +584,27 @@ export default function BubbleChart({ data, onBubbleClick, width, height }) {
         let spinnerAnimation = null;
         
         // Function to start spinner animation (slow rotation)
+        // Use CSS animation on mobile instead of RAF for better performance
         const startSpinner = () => {
-          const circumference = Math.PI * spinnerRadius;
-          let offset = 0;
-          let lastTime = performance.now();
-          const animate = (currentTime) => {
-            const deltaTime = currentTime - lastTime;
-            // Rotate slowly: only update every ~100ms and move less per frame
-            if (deltaTime >= 100) {
-              offset = (offset + 1.5) % (circumference * 2); // Very slow rotation
-              spinnerCircle.attr('stroke-dashoffset', offset);
-              lastTime = currentTime;
-            }
+          if (isMobile) {
+            // Use CSS transform animation on mobile
+            spinnerCircle.style('animation', 'spin 1.5s linear infinite');
+          } else {
+            const circumference = Math.PI * spinnerRadius;
+            let offset = 0;
+            let lastTime = performance.now();
+            const animate = (currentTime) => {
+              const deltaTime = currentTime - lastTime;
+              // Rotate slowly: only update every ~100ms and move less per frame
+              if (deltaTime >= 100) {
+                offset = (offset + 1.5) % (circumference * 2); // Very slow rotation
+                spinnerCircle.attr('stroke-dashoffset', offset);
+                lastTime = currentTime;
+              }
+              spinnerAnimation = requestAnimationFrame(animate);
+            };
             spinnerAnimation = requestAnimationFrame(animate);
-          };
-          spinnerAnimation = requestAnimationFrame(animate);
+          }
         };
         
         // Function to stop spinner animation
@@ -662,6 +738,11 @@ export default function BubbleChart({ data, onBubbleClick, width, height }) {
     }
 
     // Add KOL name in the middle (largest text) - only show if bubble is large enough (only for new bubbles)
+    // Adjust font sizes for mobile
+    const nameFontSizeScale = isMobile ? 3 : 2.5; // Slightly smaller on mobile
+    const minNameFontSize = isMobile ? 14 : 18;
+    const maxNameFontSize = isMobile ? 22 : 28;
+    
     bubblesEnter.append('text')
       .attr('class', 'kol-name')
       .attr('text-anchor', 'middle')
@@ -669,7 +750,7 @@ export default function BubbleChart({ data, onBubbleClick, width, height }) {
       .attr('y', 0)
       .attr('dy', '0.35em')
       .attr('fill', '#ffffff')
-      .attr('font-size', d => Math.max(18, Math.min(28, d.radius / 2.5)))
+      .attr('font-size', d => Math.max(minNameFontSize, Math.min(maxNameFontSize, d.radius / nameFontSizeScale)))
       .attr('font-weight', '700')
       .style('pointer-events', 'none')
       .style('user-select', 'none')
@@ -685,6 +766,11 @@ export default function BubbleChart({ data, onBubbleClick, width, height }) {
       });
 
     // Add follower count at bottom - only show if bubble is large enough (only for new bubbles)
+    // Adjust font sizes for mobile
+    const followerFontSizeScale = isMobile ? 5 : 4;
+    const minFollowerFontSize = isMobile ? 11 : 13;
+    const maxFollowerFontSize = isMobile ? 16 : 18;
+    
     bubblesEnter.append('text')
       .attr('class', 'follower-count')
       .attr('text-anchor', 'middle')
@@ -692,7 +778,7 @@ export default function BubbleChart({ data, onBubbleClick, width, height }) {
       .attr('y', 0)
       .attr('dy', d => d.radius * 0.4 + 14)
       .attr('fill', '#b9bbbe')
-      .attr('font-size', d => Math.max(13, Math.min(18, d.radius / 4))) // Increased from /5 to /4, min from 11 to 13, max from 15 to 18
+      .attr('font-size', d => Math.max(minFollowerFontSize, Math.min(maxFollowerFontSize, d.radius / followerFontSizeScale)))
       .attr('font-weight', '700') // Changed from '500' to '700' (bold)
       .style('pointer-events', 'none')
       .style('user-select', 'none')
@@ -732,8 +818,18 @@ export default function BubbleChart({ data, onBubbleClick, width, height }) {
       }, 1000); // Save every 1 second
     };
 
-    // Update positions on simulation tick
+    // Update positions on simulation tick with throttling for mobile
+    let lastTickTime = 0;
+    const tickThrottle = isMobile ? 50 : 16; // 20fps on mobile, 60fps on desktop
+    
     simulation.on('tick', () => {
+      // Throttle tick updates on mobile for better performance
+      const now = performance.now();
+      if (isMobile && now - lastTickTime < tickThrottle) {
+        return;
+      }
+      lastTickTime = now;
+      
       // Apply boundary constraints to keep bubbles within viewport
       nodes.forEach(node => {
         // Keep bubbles within bounds (accounting for radius)
@@ -768,7 +864,7 @@ export default function BubbleChart({ data, onBubbleClick, width, height }) {
         simulationRef.current.stop();
       }
     };
-  }, [data, width, height, onBubbleClick]);
+  }, [data, width, height, onBubbleClick, isMobile, bubbleSizeRange]);
 
   return (
     <svg
