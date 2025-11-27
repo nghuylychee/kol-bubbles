@@ -32,6 +32,10 @@ class Snake {
     this.isDead = false;
     this.respawnTimer = 0;
     this.respawnDelay = 180; // 3 seconds at 60fps
+    
+    // Combat cooldown to prevent spam
+    this.lastCombatTime = 0;
+    this.combatCooldown = 1000; // 1 second in milliseconds
   }
   
   // Update snake position and AI
@@ -703,8 +707,16 @@ export default function SnakeGame({ data, onSnakeClick }) {
         snakes.forEach(otherSnake => {
           if (snake.id === otherSnake.id || snake.isDead || otherSnake.isDead) return;
           
+          // Skip if either snake is on cooldown (prevent combat spam)
+          const currentTime = Date.now();
+          if (currentTime - snake.lastCombatTime < snake.combatCooldown) return;
+          if (currentTime - otherSnake.lastCombatTime < otherSnake.combatCooldown) return;
+          
+          // Prevent duplicate detection (A vs B and B vs A in same frame)
+          // Only process if snake.id < otherSnake.id
+          if (snake.id > otherSnake.id) return;
+          
           const head = snake.segments[0];
-          let hasCollided = false;
           
           // Check head collision with ALL segments of other snake (including head - segment[0])
           for (let i = 0; i < otherSnake.segments.length; i++) {
@@ -719,8 +731,6 @@ export default function SnakeGame({ data, onSnakeClick }) {
               : snake.radius + otherSnake.radius * 0.8; // Head-to-body: slightly smaller
             
             if (dist < collisionRadius) {
-              hasCollided = true;
-              
               // Combat! Random gain/loss (100-1000 followers)
               const followerChange = Math.floor(Math.random() * 900) + 100;
               
@@ -735,6 +745,10 @@ export default function SnakeGame({ data, onSnakeClick }) {
               // Loser loses followers
               randomLoser.totalFollowers = Math.max(10000, randomLoser.totalFollowers - followerChange);
               randomLoser.length = Math.max(10, Math.floor(randomLoser.totalFollowers / 10000));
+              
+              // Set cooldown for both snakes (prevent immediate re-combat)
+              snake.lastCombatTime = currentTime;
+              otherSnake.lastCombatTime = currentTime;
               
               // Store collision for effect
               newCollisions.push({
@@ -761,7 +775,7 @@ export default function SnakeGame({ data, onSnakeClick }) {
                 otherSnake.direction = pushAngle + Math.PI;
               }
               
-              break; // Only process one collision per frame
+              break; // Only process one collision per pair
             }
           }
         });
