@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import './SnakeGame.css';
+import { getCachedAvatar, cacheAvatar, loadAvatarWithQueue } from '../utils/avatarCache';
 
 // Snake class
 class Snake {
@@ -245,7 +246,7 @@ class Snake {
   }
   
   // Draw snake with simple slither.io style
-  draw(ctx, images) {
+  draw(ctx, images, loadingAvatars) {
     if (this.isDead) return;
     
     // Draw body segments (simple slither.io style)
@@ -327,9 +328,12 @@ class Snake {
     ctx.lineWidth = 3;
     ctx.stroke();
     
-    // Draw avatar image or initials
-    if (this.avatarUrl && images[this.avatarUrl]) {
-      const img = images[this.avatarUrl];
+    // Draw avatar image, loading spinner, or initials
+    const isLoading = loadingAvatars && loadingAvatars.has(this.id);
+    
+    if (this.avatarUrl && images[this.id] && !isLoading) {
+      // Avatar loaded successfully
+      const img = images[this.id];
       ctx.save();
       ctx.beginPath();
       ctx.arc(head.x, head.y, avatarSize - 2, 0, Math.PI * 2);
@@ -343,8 +347,27 @@ class Snake {
         (avatarSize - 2) * 2
       );
       ctx.restore();
+    } else if (isLoading) {
+      // Show loading spinner
+      const spinnerRadius = avatarSize * 0.35;
+      const time = Date.now() / 1000; // Convert to seconds
+      const rotation = (time * 2) % (Math.PI * 2); // 2 rotations per second
+      
+      ctx.save();
+      ctx.translate(head.x, head.y);
+      ctx.rotate(rotation);
+      
+      // Draw spinning arc
+      ctx.strokeStyle = '#5865F2';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(0, 0, spinnerRadius, 0, Math.PI * 1.5); // 3/4 circle
+      ctx.stroke();
+      
+      ctx.restore();
     } else {
-      // Draw initials
+      // Draw initials (no avatar or failed to load)
       ctx.fillStyle = '#2c3e50';
       ctx.font = `bold ${avatarSize * 0.8}px Arial`;
       ctx.textAlign = 'center';
@@ -407,6 +430,7 @@ export default function SnakeGame({ data, onSnakeClick }) {
   const [logQueue, setLogQueue] = useState([]); // Queue for sequential logs
   const followSnakeIdRef = useRef(null); // Ref for accessing in game loop
   const cameraRef = useRef({ x: 0, y: 0, zoom: 1 }); // Use ref instead of state for better performance
+  const [loadingAvatars, setLoadingAvatars] = useState(new Set()); // Track loading avatars
   
   // Large map size
   const MAP_WIDTH = 4000;
@@ -435,41 +459,66 @@ export default function SnakeGame({ data, onSnakeClick }) {
     
     setSnakes(newSnakes);
     
-    // Load avatar images with better error handling
+    // Load avatar images using avatarCache (same as bubble chart)
     const loadImages = async () => {
       const imgMap = {};
-      const promises = data.map(kol => {
-        if (!kol.avatar_url) return Promise.resolve();
-        
-        return new Promise((resolve) => {
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          
-          // Set timeout for loading
-          const timeout = setTimeout(() => {
-            console.warn(`Timeout loading avatar for ${kol.name}`);
-            resolve();
-          }, 5000);
-          
-          img.onload = () => {
-            clearTimeout(timeout);
-            imgMap[kol.id] = img;
-            console.log(`✅ Loaded avatar for ${kol.name}`);
-            resolve();
-          };
-          
-          img.onerror = () => {
-            clearTimeout(timeout);
-            console.warn(`❌ Failed to load avatar for ${kol.name}`);
-            resolve();
-          };
-          
-          img.src = kol.avatar_url;
-        });
-      });
+      const loadingSet = new Set();
       
-      await Promise.all(promises);
-      setImages(imgMap);
+      // Mark all as loading initially
+      data.forEach(kol => {
+        if (kol.avatar_url) {
+          loadingSet.add(kol.id);
+        }
+      });
+      setLoadingAvatars(loadingSet);
+      
+      for (const kol of data) {
+        if (!kol.avatar_url) continue;
+        
+        try {
+          // Check cache first
+          const cachedImg = getCachedAvatar(kol.id);
+          if (cachedImg) {
+            imgMap[kol.id] = cachedImg;
+            console.log(`✅ Loaded cached avatar for ${kol.name}`);
+            setLoadingAvatars(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(kol.id);
+              return newSet;
+            });
+            setImages(prev => ({ ...prev, [kol.id]: cachedImg }));
+            continue;
+          }
+          
+          // Load with queue and cache
+          const img = await loadAvatarWithQueue(kol.avatar_url, kol.id);
+          if (img) {
+            imgMap[kol.id] = img;
+            cacheAvatar(kol.id, img);
+            console.log(`✅ Loaded avatar for ${kol.name}`);
+            setLoadingAvatars(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(kol.id);
+              return newSet;
+            });
+            setImages(prev => ({ ...prev, [kol.id]: img }));
+          } else {
+            setLoadingAvatars(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(kol.id);
+              return newSet;
+            });
+          }
+        } catch (error) {
+          console.warn(`Failed to load avatar for ${kol.name}:`, error);
+          setLoadingAvatars(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(kol.id);
+            return newSet;
+          });
+        }
+      }
+      
       console.log(`📸 Loaded ${Object.keys(imgMap).length} avatars`);
     };
     
@@ -641,7 +690,7 @@ export default function SnakeGame({ data, onSnakeClick }) {
           snake.eatFood(food, foods);
         });
         
-        snake.draw(ctx, images);
+        snake.draw(ctx, images, loadingAvatars);
       });
       
       // Add collision effects and combat logs
