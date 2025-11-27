@@ -264,7 +264,7 @@ export default function BubbleChart({ data, onBubbleClick, width, height }) {
               .ease(updateEase)
               .attr('r', newAvatarSize)
               .attr('cy', newAvatarY)
-              .style('opacity', node.radius > 35 ? 1 : 0);
+              .style('opacity', 1); // Always visible
           }
           
           // Update avatar clip path
@@ -287,7 +287,7 @@ export default function BubbleChart({ data, onBubbleClick, width, height }) {
               .attr('y', newAvatarY - newAvatarSize)
               .attr('width', newAvatarSize * 2)
               .attr('height', newAvatarSize * 2)
-              .style('opacity', node.radius > 35 ? 1 : 0);
+              .style('opacity', 1); // Always visible
           }
           
           // Update avatar initials text
@@ -299,7 +299,7 @@ export default function BubbleChart({ data, onBubbleClick, width, height }) {
               .ease(updateEase)
               .attr('y', newAvatarY)
               .attr('font-size', newAvatarSize * 0.6)
-              .style('opacity', node.radius > 35 ? 1 : 0);
+              .style('opacity', 1); // Always visible
           }
           
           // Update loading spinner
@@ -313,7 +313,7 @@ export default function BubbleChart({ data, onBubbleClick, width, height }) {
               .attr('r', spinnerRadius)
               .attr('cy', newAvatarY)
               .attr('stroke-dasharray', `${Math.PI * spinnerRadius * 0.5} ${Math.PI * spinnerRadius * 0.5}`)
-              .style('opacity', node.radius > 35 ? 0.7 : 0);
+              .style('opacity', 0.7); // Always visible when loading
           }
           
           // Update text sizes if radius changed (use class selectors to avoid duplicates)
@@ -548,10 +548,9 @@ export default function BubbleChart({ data, onBubbleClick, width, height }) {
         .style('pointer-events', 'none');
       
       // Add avatar image or initials in the small circle at top
-      // On mobile, only load avatar if bubble is large enough to show it
-      const shouldLoadAvatar = !isMobile || d.radius > 35;
+      // Always load avatar for all bubble sizes for better recognition
       
-      if (d.avatar_url && shouldLoadAvatar) {
+      if (d.avatar_url) {
         // Add clip path for circular avatar
         const clipId = `avatar-clip-${d.id}`;
         defs.append('clipPath')

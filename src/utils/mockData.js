@@ -29,7 +29,7 @@ export function generateMockFollowers(kolId) {
 
 /**
  * Generate color for bubble based on total followers
- * Dynamic gradient from light green (min) to dark green (max)
+ * Dynamic gradient from dark green (min/small) to light green (max/large)
  * @param {number} totalFollowers - Total follower count
  * @param {number} minFollowers - Minimum follower count in dataset
  * @param {number} maxFollowers - Maximum follower count in dataset
@@ -45,15 +45,15 @@ export function getBubbleColor(totalFollowers, minFollowers = 0, maxFollowers = 
   const normalized = (totalFollowers - minFollowers) / (maxFollowers - minFollowers);
   const clamped = Math.max(0, Math.min(1, normalized)); // Clamp between 0 and 1
 
-  // Light Green to Dark Green gradient palette (only green shades)
+  // Dark Green to Light Green gradient palette (small bubbles = dark, large bubbles = light)
   const greenColors = [
-    { r: 144, g: 238, b: 144 }, // Light Green (#90EE90) - min
-    { r: 124, g: 252, b: 0 },   // Lawn Green (#7CFC00)
-    { r: 50, g: 205, b: 50 },   // Lime Green (#32CD32)
-    { r: 34, g: 139, b: 34 },   // Forest Green (#228B22)
-    { r: 0, g: 128, b: 0 },     // Green (#008000)
+    { r: 0, g: 80, b: 0 },      // Very Dark Green - min (smallest)
     { r: 0, g: 100, b: 0 },     // Dark Green (#006400)
-    { r: 0, g: 80, b: 0 }       // Very Dark Green - max
+    { r: 0, g: 128, b: 0 },     // Green (#008000)
+    { r: 34, g: 139, b: 34 },   // Forest Green (#228B22)
+    { r: 50, g: 205, b: 50 },   // Lime Green (#32CD32)
+    { r: 124, g: 252, b: 0 },   // Lawn Green (#7CFC00)
+    { r: 144, g: 238, b: 144 }  // Light Green (#90EE90) - max (largest)
   ];
 
   // Interpolate between colors based on normalized value

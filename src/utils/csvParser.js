@@ -314,15 +314,57 @@ export async function parseKOLDataFetched(csvContent) {
 
 /**
  * Load and parse KOL data from CSV file with mock data only (NO Apify call)
- * Priority: 1. Cached data, 2. kol-data-fetched.csv, 3. kol-data.csv (mock)
+ * Priority: 1. kol-data-fetched.csv (always fresh), 2. kol-data.csv (mock), 3. Cached data (fallback)
  * @returns {Promise<Array>} Array of KOL objects with mock data or cached data
  */
 export async function loadKOLDataMock() {
   try {
-    // Check cache first for follower data, but always recalculate colors
+    // Try to load from kol-data-fetched.csv first (ALWAYS fresh, no cache)
+    try {
+      // Add timestamp to prevent browser caching
+      const timestamp = new Date().getTime();
+      const fetchedResponse = await fetch(`${import.meta.env.BASE_URL}kol-data-fetched.csv?t=${timestamp}`);
+      if (fetchedResponse.ok) {
+        const fetchedCsvContent = await fetchedResponse.text();
+        
+        // Check if file has actual data (not empty or just headers)
+        const lines = fetchedCsvContent.trim().split('\n');
+        if (lines.length > 1) {
+          console.log('✅ Loading fresh data from kol-data-fetched.csv');
+          const fetchedData = await parseKOLDataFetched(fetchedCsvContent);
+          
+          // Save to cache for offline fallback
+          saveKOLDataCache(fetchedData);
+          
+          return fetchedData;
+        }
+      }
+    } catch (error) {
+      console.log('⚠️ kol-data-fetched.csv not found or error, trying fallback...');
+    }
+
+    // Fallback to kol-data.csv with mock data
+    try {
+      const timestamp = new Date().getTime();
+      const response = await fetch(`${import.meta.env.BASE_URL}kol-data.csv?t=${timestamp}`);
+      if (response.ok) {
+        console.log('📄 Loading from kol-data.csv (mock data)');
+        const csvContent = await response.text();
+        const mockData = await parseKOLDataMock(csvContent);
+        
+        // Save mock data to cache for future use
+        saveKOLDataCache(mockData);
+        
+        return mockData;
+      }
+    } catch (error) {
+      console.log('⚠️ kol-data.csv not found, trying cached data...');
+    }
+
+    // Last resort: use cached data if available
     const cachedData = loadKOLDataCache();
     if (cachedData && cachedData.length > 0) {
-      console.log(`Using cached data (${cachedData.length} KOLs) but recalculating colors`);
+      console.log(`💾 Using cached data as last resort (${cachedData.length} KOLs)`);
       
       // Recalculate colors based on current min/max (always fresh, never from cache)
       const minFollowers = Math.min(...cachedData.map(d => d.total_followers));
@@ -331,55 +373,20 @@ export async function loadKOLDataMock() {
       console.log('🎨 [CACHED] Green Color Scaling:', { 
         minFollowers, 
         maxFollowers, 
-        range: maxFollowers - minFollowers,
-        sampleColors: {
-          min: getBubbleColor(minFollowers, minFollowers, maxFollowers),
-          mid: getBubbleColor((minFollowers + maxFollowers) / 2, minFollowers, maxFollowers),
-          max: getBubbleColor(maxFollowers, minFollowers, maxFollowers)
-        }
+        range: maxFollowers - minFollowers
       });
       
       // Return cached data with recalculated colors
       return cachedData.map(d => ({
         ...d,
-        color: getBubbleColor(d.total_followers, minFollowers, maxFollowers) // Always recalculate
+        color: getBubbleColor(d.total_followers, minFollowers, maxFollowers)
       }));
     }
 
-    // If no cache, try to load from kol-data-fetched.csv first
-    try {
-      // Add timestamp to prevent browser caching
-      const timestamp = new Date().getTime();
-      const fetchedResponse = await fetch(`${import.meta.env.BASE_URL}kol-data-fetched.csv?t=${timestamp}`);
-      if (fetchedResponse.ok) {
-        console.log('Loading from kol-data-fetched.csv (has real data)');
-        const fetchedCsvContent = await fetchedResponse.text();
-        const fetchedData = await parseKOLDataFetched(fetchedCsvContent);
-        
-        // Save to cache for future use
-        saveKOLDataCache(fetchedData);
-        
-        return fetchedData;
-      }
-    } catch (error) {
-      console.log('kol-data-fetched.csv not found, falling back to kol-data.csv');
-    }
-
-    // Fallback to kol-data.csv with mock data
-    const timestamp = new Date().getTime();
-    const response = await fetch(`${import.meta.env.BASE_URL}kol-data.csv?t=${timestamp}`);
-    if (!response.ok) {
-      throw new Error(`Failed to load CSV: ${response.statusText}`);
-    }
-    const csvContent = await response.text();
-    const mockData = await parseKOLDataMock(csvContent);
-    
-    // Save mock data to cache for future use
-    saveKOLDataCache(mockData);
-    
-    return mockData;
+    // If nothing works, throw error
+    throw new Error('No data source available (CSV files not found and no cache)');
   } catch (error) {
-    console.error('Error loading KOL data:', error);
+    console.error('❌ Error loading KOL data:', error);
     throw error;
   }
 }
