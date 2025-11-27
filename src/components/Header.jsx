@@ -12,6 +12,14 @@ export default function Header({
   // Chỉ hiển thị button Fetch Data khi ở development mode
   const isDev = import.meta.env.DEV;
   
+  // Clear cache and reload page
+  const handleClearCache = () => {
+    if (confirm('Clear cache and reload data?')) {
+      localStorage.clear();
+      window.location.reload();
+    }
+  };
+  
   return (
     <header className="header">
       <div className="header-top">
@@ -49,15 +57,19 @@ export default function Header({
               </button>
             )}
             <FilterPanel value={filterValue} onChange={onFilterChange} />
+            <button 
+              className="icon-button" 
+              aria-label="Clear Cache"
+              onClick={handleClearCache}
+              title="Clear cache & reload data"
+            >
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M4 2a2 2 0 00-2 2v2h16V4a2 2 0 00-2-2H4zm14 6H2v8a2 2 0 002 2h12a2 2 0 002-2V8zM6 11h2v2H6v-2zm4 0h2v2h-2v-2z" fill="currentColor"/>
+              </svg>
+            </button>
             <button className="icon-button" aria-label="Menu">
               <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M2 4h16M2 10h16M2 16h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-              </svg>
-            </button>
-            <button className="icon-button" aria-label="Settings">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" fill="currentColor"/>
-                <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1.323l3.954 1.582 1.599-.8a1 1 0 011.894.447l-.5 3a1 1 0 01-1.106.894L15 9.5V8.5a1 1 0 00-.894-.553l-3.106-1.243A1 1 0 0111 6.177V3a1 1 0 00-1-1H9a1 1 0 00-1 1v1.323L4.046 5.905l-1.599-.8a1 1 0 01.894-1.447l3 .5a1 1 0 01.553.894V6.5a1 1 0 001 1h.5l.5 3a1 1 0 01-.894 1.106L7 12.5v1a1 1 0 001 1h4a1 1 0 001-1v-1l-.447-.894a1 1 0 01.894-1.106l.5-3h.5a1 1 0 001-1V5.323l3-1.5a1 1 0 01.894.447l.5 3a1 1 0 01-1.106.894L15 9.5V8.5a1 1 0 00-.894-.553l-3.106-1.243A1 1 0 0111 6.177V3a1 1 0 00-1-1H9a1 1 0 00-1 1v1.323L4.046 5.905l-1.599-.8a1 1 0 01.894-1.447l3 .5a1 1 0 01.553.894V6.5a1 1 0 001 1h.5l.5 3a1 1 0 01-.894 1.106L7 12.5v1a1 1 0 001 1h4a1 1 0 001-1v-1l-.447-.894a1 1 0 01.894-1.106l.5-3h.5a1 1 0 001-1V5.323l3-1.5z" clipRule="evenodd"/>
               </svg>
             </button>
           </div>

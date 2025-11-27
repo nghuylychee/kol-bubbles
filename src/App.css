@@ -381,6 +381,9 @@
   color: #b9bbbe;
   font-size: 0.85rem;
   margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .stat-value {
@@ -402,7 +405,9 @@
 }
 
 .social-link {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 0.75rem 1rem;
   background: #202225;
   border: 1px solid rgba(255, 255, 255, 0.06);
