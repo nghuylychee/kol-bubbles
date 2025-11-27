@@ -330,23 +330,39 @@ class Snake {
     
     // Draw avatar image, loading spinner, or initials
     const isLoading = loadingAvatars && loadingAvatars.has(this.id);
+    const img = images[this.id];
     
-    if (this.avatarUrl && images[this.id] && !isLoading) {
+    // Validate image object before drawing
+    const isValidImage = img && 
+                         img instanceof HTMLImageElement && 
+                         img.complete && 
+                         img.naturalWidth > 0;
+    
+    if (this.avatarUrl && isValidImage && !isLoading) {
       // Avatar loaded successfully
-      const img = images[this.id];
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(head.x, head.y, avatarSize - 2, 0, Math.PI * 2);
-      ctx.closePath();
-      ctx.clip();
-      ctx.drawImage(
-        img,
-        head.x - avatarSize + 2,
-        head.y - avatarSize + 2,
-        (avatarSize - 2) * 2,
-        (avatarSize - 2) * 2
-      );
-      ctx.restore();
+      try {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(head.x, head.y, avatarSize - 2, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(
+          img,
+          head.x - avatarSize + 2,
+          head.y - avatarSize + 2,
+          (avatarSize - 2) * 2,
+          (avatarSize - 2) * 2
+        );
+        ctx.restore();
+      } catch (error) {
+        // Fallback to initials if drawImage fails
+        ctx.restore();
+        ctx.fillStyle = '#2c3e50';
+        ctx.font = `bold ${avatarSize * 0.8}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.initials || this.name.substring(0, 2).toUpperCase(), head.x, head.y);
+      }
     } else if (isLoading) {
       // Show loading spinner
       const spinnerRadius = avatarSize * 0.35;
@@ -478,7 +494,7 @@ export default function SnakeGame({ data, onSnakeClick }) {
         try {
           // Check cache first
           const cachedImg = getCachedAvatar(kol.id);
-          if (cachedImg) {
+          if (cachedImg && cachedImg instanceof HTMLImageElement && cachedImg.complete) {
             imgMap[kol.id] = cachedImg;
             console.log(`✅ Loaded cached avatar for ${kol.name}`);
             setLoadingAvatars(prev => {
@@ -492,7 +508,7 @@ export default function SnakeGame({ data, onSnakeClick }) {
           
           // Load with queue and cache
           const img = await loadAvatarWithQueue(kol.avatar_url, kol.id);
-          if (img) {
+          if (img && img instanceof HTMLImageElement && img.complete && img.naturalWidth > 0) {
             imgMap[kol.id] = img;
             cacheAvatar(kol.id, img);
             console.log(`✅ Loaded avatar for ${kol.name}`);
@@ -503,6 +519,7 @@ export default function SnakeGame({ data, onSnakeClick }) {
             });
             setImages(prev => ({ ...prev, [kol.id]: img }));
           } else {
+            console.warn(`⚠️ Invalid image for ${kol.name}`);
             setLoadingAvatars(prev => {
               const newSet = new Set(prev);
               newSet.delete(kol.id);
