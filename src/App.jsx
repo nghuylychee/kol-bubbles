@@ -3,6 +3,7 @@ import './App.css';
 import Header from './components/Header';
 import SnakeGame from './components/SnakeGame';
 import BubbleChart from './components/BubbleChart';
+import BubbleBattle from './components/BubbleBattle';
 import BubbleDetail from './components/BubbleDetail';
 import { loadKOLData, loadKOLDataMock } from './utils/csvParser';
 
@@ -14,7 +15,7 @@ function App() {
   const [selectedKol, setSelectedKol] = useState(null);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
-  const [viewMode, setViewMode] = useState('bubble'); // 'bubble' or 'slither'
+  const [viewMode, setViewMode] = useState('bubble'); // 'bubble', 'slither', or 'bubbles-battle'
   const [windowSize, setWindowSize] = useState({
     width: window.innerWidth,
     height: window.innerHeight
@@ -163,6 +164,11 @@ function App() {
               height={chartHeight}
             />
           </div>
+        ) : viewMode === 'bubbles-battle' ? (
+          <BubbleBattle
+            data={filteredData}
+            onBubbleClick={handleBubbleClick}
+          />
         ) : (
           <SnakeGame
             data={filteredData}

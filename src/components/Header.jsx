@@ -19,7 +19,7 @@ export default function Header({
       <div className="header-top">
         <div className="header-left">
           <h1 className="header-title">
-            {viewMode === 'bubble' ? 'KOL BUBBLES' : 'KOL SNAKES'}
+            {viewMode === 'bubble' ? 'KOL BUBBLES' : viewMode === 'bubbles-battle' ? 'KOL BUBBLES BATTLE' : 'KOL SNAKES'}
           </h1>
         </div>
         <div className="header-center">
@@ -43,6 +43,18 @@ export default function Header({
                   <circle cx="10" cy="10" r="5" fill="currentColor"/>
                 </svg>
                 <span>Bubbles</span>
+              </button>
+              <button 
+                className={`mode-button ${viewMode === 'bubbles-battle' ? 'active' : ''}`}
+                onClick={() => onModeChange('bubbles-battle')}
+                title="Bubbles Battle"
+              >
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                  <circle cx="10" cy="10" r="8" fill="currentColor" opacity="0.3"/>
+                  <circle cx="10" cy="10" r="5" fill="currentColor"/>
+                  <path d="M5 5 L15 15 M15 5 L5 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+                <span>Battle</span>
               </button>
               <button 
                 className={`mode-button ${viewMode === 'slither' ? 'active' : ''}`}
